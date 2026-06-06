@@ -1,0 +1,358 @@
+{
+  "info": {
+    "name": "TontineX360 API",
+    "description": "Collection complete pour tester l'API TontineX360.\n\n**Setup:**\n1. Creer un environment avec les variables: `base_url`, `access_token`, `refresh_token`, `association_slug`\n2. Lancer 'Register' puis 'Login' pour obtenir les tokens\n3. Creer une association via 'Create Association'\n4. Les tokens se mettent a jour automatiquement",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000/api" },
+    { "key": "access_token", "value": "" },
+    { "key": "refresh_token", "value": "" },
+    { "key": "association_slug", "value": "" },
+    { "key": "user_id", "value": "" },
+    { "key": "membership_id", "value": "" },
+    { "key": "cycle_id", "value": "" },
+    { "key": "session_id", "value": "" },
+    { "key": "pot_id", "value": "" },
+    { "key": "tontine_type_id", "value": "" },
+    { "key": "conversation_id", "value": "" },
+    { "key": "invitation_token", "value": "" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (pm.request.headers.get('X-Association-Slug') === undefined && pm.variables.get('association_slug')) {",
+          "    pm.request.headers.add({ key: 'X-Association-Slug', value: pm.variables.get('association_slug') });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "01 — Auth & User",
+      "item": [
+        {
+          "name": "Register",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.response.code === 201) {",
+            "    var json = pm.response.json();",
+            "    pm.collectionVariables.set('access_token', json.tokens.access);",
+            "    pm.collectionVariables.set('refresh_token', json.tokens.refresh);",
+            "    pm.collectionVariables.set('user_id', json.user.id);",
+            "    pm.test('User created', () => pm.expect(json.user.telephone).to.not.be.empty);",
+            "}"
+          ]}}],
+          "request": {
+            "method": "POST", "url": "{{base_url}}/auth/register/",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"telephone\": \"+237600000001\",\n  \"first_name\": \"Marie\",\n  \"last_name\": \"Ngoufack\",\n  \"email\": \"marie@test.com\",\n  \"password\": \"TestPass123\",\n  \"password_confirm\": \"TestPass123\"\n}" }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.response.code === 200) {",
+            "    var json = pm.response.json();",
+            "    pm.collectionVariables.set('access_token', json.tokens.access);",
+            "    pm.collectionVariables.set('refresh_token', json.tokens.refresh);",
+            "    pm.test('Login OK', () => pm.expect(json.tokens.access).to.not.be.empty);",
+            "}"
+          ]}}],
+          "request": {
+            "method": "POST", "url": "{{base_url}}/auth/login/",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"telephone\": \"+237600000001\",\n  \"password\": \"TestPass123\"\n}" }
+          }
+        },
+        {
+          "name": "Validate OTP",
+          "request": {
+            "method": "POST", "url": "{{base_url}}/auth/valid-otp/",
+            "auth": { "type": "noauth" },
+            "body": { "mode": "raw", "raw": "{\n  \"telephone\": \"+237600000001\",\n  \"otp\": \"123456\"\n}" }
+          }
+        },
+        {
+          "name": "Resend OTP",
+          "request": {
+            "method": "POST", "url": "{{base_url}}/auth/resend-otp/",
+            "auth": { "type": "noauth" },
+            "body": { "mode": "raw", "raw": "{\n  \"telephone\": \"+237600000001\"\n}" }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.response.code === 200) {",
+            "    pm.collectionVariables.set('access_token', pm.response.json().access);",
+            "}"
+          ]}}],
+          "request": {
+            "method": "POST", "url": "{{base_url}}/auth/token/refresh/",
+            "auth": { "type": "noauth" },
+            "body": { "mode": "raw", "raw": "{\n  \"refresh\": \"{{refresh_token}}\"\n}" }
+          }
+        },
+        {
+          "name": "Me (Profile)",
+          "request": { "method": "GET", "url": "{{base_url}}/auth/me/" }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PATCH", "url": "{{base_url}}/auth/me/",
+            "body": { "mode": "raw", "raw": "{\n  \"first_name\": \"Marie-Claire\",\n  \"city\": \"Dschang\"\n}" }
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST", "url": "{{base_url}}/auth/change-password/",
+            "body": { "mode": "raw", "raw": "{\n  \"old_password\": \"TestPass123\",\n  \"new_password\": \"NewPass456\"\n}" }
+          }
+        },
+        {
+          "name": "Register FCM Token",
+          "request": {
+            "method": "POST", "url": "{{base_url}}/auth/register-fcm-token/",
+            "body": { "mode": "raw", "raw": "{\n  \"token\": \"fcm_device_token_here\",\n  \"device_type\": \"android\"\n}" }
+          }
+        },
+        {
+          "name": "My Associations",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "var json = pm.response.json();",
+            "if (json.associations && json.associations.length > 0) {",
+            "    pm.collectionVariables.set('association_slug', json.associations[0].slug);",
+            "}"
+          ]}}],
+          "request": { "method": "GET", "url": "{{base_url}}/auth/associations/" }
+        },
+        {
+          "name": "Create Association",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.response.code === 201) {",
+            "    var json = pm.response.json();",
+            "    pm.collectionVariables.set('association_slug', json.association.slug);",
+            "    pm.test('Association created', () => pm.expect(json.association.slug).to.not.be.empty);",
+            "}"
+          ]}}],
+          "request": {
+            "method": "POST", "url": "{{base_url}}/auth/associations/create/",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Les Amis de Dschang\",\n  \"slug\": \"amis-dschang\",\n  \"description\": \"Association des ressortissants\",\n  \"city\": \"Dschang\"\n}" }
+          }
+        },
+        {
+          "name": "Select Association",
+          "request": {
+            "method": "POST", "url": "{{base_url}}/auth/associations/select/",
+            "body": { "mode": "raw", "raw": "{\n  \"slug\": \"{{association_slug}}\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 — Members",
+      "item": [
+        { "name": "List Members", "request": { "method": "GET", "url": "{{base_url}}/members/memberships/" }},
+        { "name": "Get Member", "request": { "method": "GET", "url": "{{base_url}}/members/memberships/{{membership_id}}/" }},
+        { "name": "Update Member", "request": { "method": "PATCH", "url": "{{base_url}}/members/memberships/{{membership_id}}/", "body": { "mode": "raw", "raw": "{\n  \"extra_data\": {\"profession\": \"Ingenieur\", \"quartier\": \"Cite Verte\"}\n}" }}},
+        { "name": "List Roles", "request": { "method": "GET", "url": "{{base_url}}/members/roles/" }},
+        { "name": "Create Role", "request": { "method": "POST", "url": "{{base_url}}/members/roles/", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Responsable Discipline\",\n  \"slug\": \"resp-discipline\",\n  \"description\": \"Gere les sanctions\",\n  \"permissions\": [\"sanctions.*\"]\n}" }}},
+        { "name": "List Bureau Members", "request": { "method": "GET", "url": "{{base_url}}/members/bureau-members/" }},
+        { "name": "List Bureau Positions", "request": { "method": "GET", "url": "{{base_url}}/members/bureau-positions/" }},
+        { "name": "Create Membership Request", "request": { "method": "POST", "url": "{{base_url}}/members/membership-requests/", "body": { "mode": "raw", "raw": "{\n  \"motivation\": \"Je souhaite rejoindre cette association\",\n  \"phone\": \"+237699000001\"\n}" }}},
+        { "name": "Approve Membership Request", "request": { "method": "POST", "url": "{{base_url}}/members/membership-requests/{{request_id}}/approve/" }},
+        { "name": "Create Resignation", "request": { "method": "POST", "url": "{{base_url}}/members/resignations/", "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Motif personnel\"\n}" }}},
+        { "name": "Import Members (CSV)", "request": { "method": "POST", "url": "{{base_url}}/members/imports/", "body": { "mode": "formdata", "formdata": [{ "key": "file", "type": "file", "src": "" }, { "key": "skip_header", "value": "true" }] }}},
+        { "name": "Fees Config", "request": { "method": "GET", "url": "{{base_url}}/members/fees/config/" }},
+        { "name": "Record Fee Payment", "request": { "method": "POST", "url": "{{base_url}}/members/fees/", "body": { "mode": "raw", "raw": "{\n  \"membership\": \"{{membership_id}}\",\n  \"amount\": 5000,\n  \"payment_method\": \"cash\"\n}" }}}
+      ]
+    },
+    {
+      "name": "03 — Invitations",
+      "item": [
+        { "name": "Send Invitation", "request": { "method": "POST", "url": "{{base_url}}/invitations/send/", "body": { "mode": "raw", "raw": "{\n  \"phone\": \"+237699000002\",\n  \"name\": \"Paul Kamga\",\n  \"channel\": \"whatsapp\",\n  \"message\": \"Rejoins notre association !\"\n}" }}},
+        { "name": "Check Invitation (public)", "request": { "method": "GET", "url": "{{base_url}}/invitations/check/{{invitation_token}}/", "auth": { "type": "noauth" }}},
+        { "name": "Register & Accept (public)", "request": { "method": "POST", "url": "{{base_url}}/invitations/register-and-accept/", "auth": { "type": "noauth" }, "body": { "mode": "raw", "raw": "{\n  \"token\": \"{{invitation_token}}\",\n  \"telephone\": \"+237699000002\",\n  \"first_name\": \"Paul\",\n  \"last_name\": \"Kamga\",\n  \"password\": \"PaulPass123\",\n  \"password_confirm\": \"PaulPass123\"\n}" }}},
+        { "name": "Login & Accept (public)", "request": { "method": "POST", "url": "{{base_url}}/invitations/login-and-accept/", "auth": { "type": "noauth" }, "body": { "mode": "raw", "raw": "{\n  \"token\": \"{{invitation_token}}\",\n  \"telephone\": \"+237699000002\",\n  \"password\": \"PaulPass123\"\n}" }}},
+        { "name": "List Invitations", "request": { "method": "GET", "url": "{{base_url}}/invitations/list/" }}
+      ]
+    },
+    {
+      "name": "04 — Tontines",
+      "item": [
+        { "name": "List Tontine Types", "event": [{ "listen": "test", "script": { "exec": ["var r = pm.response.json(); if (r.length) pm.collectionVariables.set('tontine_type_id', r[0].id);"]}}], "request": { "method": "GET", "url": "{{base_url}}/tontines/types/" }},
+        { "name": "Create Tontine Type", "request": { "method": "POST", "url": "{{base_url}}/tontines/types/", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Tontine Principale\",\n  \"slug\": \"tontine-principale\",\n  \"description\": \"Tontine mensuelle\",\n  \"contribution_kind\": \"monetary\",\n  \"rate_mode\": \"fixed\",\n  \"fixed_rate\": 2000,\n  \"currency\": \"XAF\",\n  \"allows_multiple_shares\": true,\n  \"max_shares_per_member\": 5,\n  \"share_unit_name\": \"nom\",\n  \"has_beneficiary\": true\n}" }}},
+        { "name": "List Subscriptions", "request": { "method": "GET", "url": "{{base_url}}/tontines/subscriptions/" }},
+        { "name": "Subscribe to Tontine", "request": { "method": "POST", "url": "{{base_url}}/tontines/subscriptions/", "body": { "mode": "raw", "raw": "{\n  \"membership\": \"{{membership_id}}\",\n  \"tontine_type\": \"{{tontine_type_id}}\",\n  \"cycle\": \"{{cycle_id}}\",\n  \"num_shares\": 2,\n  \"rate_per_share\": 2000\n}" }}}
+      ]
+    },
+    {
+      "name": "05 — Cycles & Sessions",
+      "item": [
+        { "name": "List Cycles", "event": [{ "listen": "test", "script": { "exec": ["var r = pm.response.json(); if (r.length) pm.collectionVariables.set('cycle_id', r[0].id);"]}}], "request": { "method": "GET", "url": "{{base_url}}/cycles/cycles/" }},
+        { "name": "Create Cycle", "request": { "method": "POST", "url": "{{base_url}}/cycles/cycles/", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Cycle 2025-2026\",\n  \"start_date\": \"2025-01-01\",\n  \"end_date\": \"2025-12-31\",\n  \"status\": \"draft\",\n  \"session_frequency\": \"monthly\",\n  \"default_session_day\": 6,\n  \"default_session_time\": \"14:00:00\",\n  \"default_session_location\": \"Salle communautaire Dschang\"\n}" }}},
+        { "name": "Preview Session Dates", "request": { "method": "GET", "url": "{{base_url}}/cycles/cycles/{{cycle_id}}/preview-dates/" }},
+        { "name": "Generate Sessions", "request": { "method": "POST", "url": "{{base_url}}/cycles/cycles/{{cycle_id}}/generate-sessions/" }},
+        { "name": "Session Stats", "request": { "method": "GET", "url": "{{base_url}}/cycles/cycles/{{cycle_id}}/sessions-stats/" }},
+        { "name": "List Cycle Configs", "request": { "method": "GET", "url": "{{base_url}}/cycles/configs/?cycle={{cycle_id}}" }},
+        { "name": "Create Cycle Config", "request": { "method": "POST", "url": "{{base_url}}/cycles/configs/", "body": { "mode": "raw", "raw": "{\n  \"cycle\": \"{{cycle_id}}\",\n  \"tontine_type\": \"{{tontine_type_id}}\",\n  \"default_method\": \"random\",\n  \"allow_override\": true,\n  \"allowed_overrides\": [\"auction\", \"need_based\"],\n  \"auction_premium_destination\": \"treasury\"\n}" }}},
+        { "name": "List Sessions", "event": [{ "listen": "test", "script": { "exec": ["var r = pm.response.json(); if (r.length) pm.collectionVariables.set('session_id', r[0].id);"]}}], "request": { "method": "GET", "url": "{{base_url}}/cycles/sessions/?cycle={{cycle_id}}" }},
+        { "name": "Create Session", "request": { "method": "POST", "url": "{{base_url}}/cycles/sessions/", "body": { "mode": "raw", "raw": "{\n  \"cycle\": \"{{cycle_id}}\",\n  \"session_number\": 1,\n  \"date\": \"2025-02-01\",\n  \"start_time\": \"14:00:00\",\n  \"location\": \"Salle communautaire\"\n}" }}},
+        { "name": "Update Session Status", "request": { "method": "PATCH", "url": "{{base_url}}/cycles/sessions/{{session_id}}/", "body": { "mode": "raw", "raw": "{\n  \"status\": \"in_progress\"\n}" }}},
+        { "name": "List Attendances", "request": { "method": "GET", "url": "{{base_url}}/cycles/attendances/?session={{session_id}}" }},
+        { "name": "Record Attendance", "request": { "method": "POST", "url": "{{base_url}}/cycles/attendances/", "body": { "mode": "raw", "raw": "{\n  \"session\": \"{{session_id}}\",\n  \"membership\": \"{{membership_id}}\",\n  \"status\": \"present\"\n}" }}},
+        { "name": "Create Session Report", "request": { "method": "POST", "url": "{{base_url}}/cycles/session-reports/", "body": { "mode": "raw", "raw": "{\n  \"session\": \"{{session_id}}\",\n  \"content\": \"PV de la seance 1. Tous les membres presents...\",\n  \"report_type\": \"minutes\"\n}" }}}
+      ]
+    },
+    {
+      "name": "06 — Cagnotte (Pot)",
+      "item": [
+        { "name": "Open Pot", "event": [{ "listen": "test", "script": { "exec": ["if (pm.response.code === 200) pm.collectionVariables.set('pot_id', pm.response.json().id);"]}}], "request": { "method": "POST", "url": "{{base_url}}/cycles/sessions/{{session_id}}/open-pot/", "body": { "mode": "raw", "raw": "{\n  \"tontine_type_id\": \"{{tontine_type_id}}\"\n}" }}},
+        { "name": "Open Pot (with override)", "request": { "method": "POST", "url": "{{base_url}}/cycles/sessions/{{session_id}}/open-pot/", "body": { "mode": "raw", "raw": "{\n  \"tontine_type_id\": \"{{tontine_type_id}}\",\n  \"override_method\": \"auction\",\n  \"override_reason\": \"Urgence membre — vote du bureau\"\n}" }}},
+        { "name": "List Pots (session)", "request": { "method": "GET", "url": "{{base_url}}/cycles/pots/?session={{session_id}}" }},
+        { "name": "Get Pot Detail", "request": { "method": "GET", "url": "{{base_url}}/cycles/pots/{{pot_id}}/" }},
+        { "name": "Distribute to Beneficiary", "request": { "method": "POST", "url": "{{base_url}}/cycles/pots/{{pot_id}}/distribute/", "body": { "mode": "raw", "raw": "{\n  \"membership_id\": \"{{membership_id}}\",\n  \"shares_claimed\": 2\n}" }}},
+        { "name": "Distribute (all shares)", "request": { "method": "POST", "url": "{{base_url}}/cycles/pots/{{pot_id}}/distribute/", "body": { "mode": "raw", "raw": "{\n  \"membership_id\": \"{{membership_id}}\"\n}" }}},
+        { "name": "Place Bid", "request": { "method": "POST", "url": "{{base_url}}/cycles/bids/", "body": { "mode": "raw", "raw": "{\n  \"pot\": \"{{pot_id}}\",\n  \"membership\": \"{{membership_id}}\",\n  \"bid_amount\": 8000\n}" }}},
+        { "name": "List Bids", "request": { "method": "GET", "url": "{{base_url}}/cycles/bids/?pot={{pot_id}}" }},
+        { "name": "Process Auction Winner", "request": { "method": "POST", "url": "{{base_url}}/cycles/pots/{{pot_id}}/auction/", "body": { "mode": "raw", "raw": "{\n  \"winner_membership_id\": \"{{membership_id}}\",\n  \"bid_amount\": 8000\n}" }}},
+        { "name": "Close Pot", "request": { "method": "POST", "url": "{{base_url}}/cycles/pots/{{pot_id}}/close/" }},
+        { "name": "List Payouts", "request": { "method": "GET", "url": "{{base_url}}/cycles/payouts/" }},
+        { "name": "Verify Receipt (public)", "request": { "method": "GET", "url": "{{base_url}}/../api/receipts/verify/HASH_VALUE/", "auth": { "type": "noauth" }}}
+      ]
+    },
+    {
+      "name": "07 — Finance",
+      "item": [
+        { "name": "List Contributions", "request": { "method": "GET", "url": "{{base_url}}/finance/contributions/?session={{session_id}}" }},
+        { "name": "Create Contribution", "request": { "method": "POST", "url": "{{base_url}}/finance/contributions/", "body": { "mode": "raw", "raw": "{\n  \"session\": \"{{session_id}}\",\n  \"membership\": \"{{membership_id}}\",\n  \"tontine_type\": \"{{tontine_type_id}}\",\n  \"expected_amount\": 4000,\n  \"paid_amount\": 4000,\n  \"status\": \"paid\",\n  \"payment_method\": \"cash\"\n}" }}},
+        { "name": "Request Correction", "request": { "method": "POST", "url": "{{base_url}}/finance/contributions/{{contribution_id}}/request-correction/", "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Montant incorrect\",\n  \"corrected_amount\": 2000\n}" }}},
+        { "name": "List Correction Requests", "request": { "method": "GET", "url": "{{base_url}}/finance/correction-requests/" }},
+        { "name": "List Loans", "request": { "method": "GET", "url": "{{base_url}}/finance/loans/" }},
+        { "name": "Create Loan", "request": { "method": "POST", "url": "{{base_url}}/finance/loans/", "body": { "mode": "raw", "raw": "{\n  \"membership\": \"{{membership_id}}\",\n  \"amount\": 25000,\n  \"interest_rate\": 5,\n  \"due_date\": \"2025-06-01\",\n  \"session_granted\": \"{{session_id}}\"\n}" }}},
+        { "name": "Approve Loan", "request": { "method": "POST", "url": "{{base_url}}/finance/loans/{{loan_id}}/approve/" }},
+        { "name": "Create Repayment", "request": { "method": "POST", "url": "{{base_url}}/finance/loan-repayments/", "body": { "mode": "raw", "raw": "{\n  \"loan\": \"{{loan_id}}\",\n  \"amount\": 10000,\n  \"payment_method\": \"mobile_money\"\n}" }}},
+        { "name": "List Treasury Accounts", "request": { "method": "GET", "url": "{{base_url}}/finance/treasury/" }},
+        { "name": "List Transactions", "request": { "method": "GET", "url": "{{base_url}}/finance/transactions/" }},
+        { "name": "Tontine Balances", "request": { "method": "GET", "url": "{{base_url}}/finance/tontine-balances/" }}
+      ]
+    },
+    {
+      "name": "08 — Wallets",
+      "item": [
+        { "name": "My Wallet", "request": { "method": "GET", "url": "{{base_url}}/wallets/me/" }},
+        { "name": "My Wallet Entries", "request": { "method": "GET", "url": "{{base_url}}/wallets/me/entries/" }},
+        { "name": "My Wallet Summary", "request": { "method": "GET", "url": "{{base_url}}/wallets/me/summary/" }},
+        { "name": "List All Wallets (admin)", "request": { "method": "GET", "url": "{{base_url}}/wallets/wallets/" }},
+        { "name": "Manual Adjustment", "request": { "method": "POST", "url": "{{base_url}}/wallets/manual-adjustment/", "body": { "mode": "raw", "raw": "{\n  \"wallet_id\": \"{{wallet_id}}\",\n  \"direction\": \"credit\",\n  \"amount\": 500,\n  \"source_type\": \"manual_adjustment\",\n  \"description\": \"Ajustement tresorier\"\n}" }}},
+        { "name": "Cycle Settlement", "request": { "method": "POST", "url": "{{base_url}}/wallets/cycle-settlement/", "body": { "mode": "raw", "raw": "{\n  \"cycle_id\": \"{{cycle_id}}\"\n}" }}}
+      ]
+    },
+    {
+      "name": "09 — Proxies",
+      "item": [
+        { "name": "List Proxies", "request": { "method": "GET", "url": "{{base_url}}/proxies/" }},
+        { "name": "Create Proxy", "request": { "method": "POST", "url": "{{base_url}}/proxies/", "body": { "mode": "raw", "raw": "{\n  \"proxy\": \"{{proxy_membership_id}}\",\n  \"session\": \"{{session_id}}\",\n  \"reason\": \"Voyage professionnel\",\n  \"proxy_cni_number\": \"123456789\"\n}" }}},
+        { "name": "Approve Proxy", "request": { "method": "POST", "url": "{{base_url}}/proxies/{{proxy_id}}/approve/", "body": { "mode": "raw", "raw": "{\n  \"review_note\": \"Approuve par le secretaire\"\n}" }}},
+        { "name": "Reject Proxy", "request": { "method": "POST", "url": "{{base_url}}/proxies/{{proxy_id}}/reject/" }},
+        { "name": "Cancel Proxy", "request": { "method": "POST", "url": "{{base_url}}/proxies/{{proxy_id}}/cancel/" }},
+        { "name": "Active Proxies", "request": { "method": "GET", "url": "{{base_url}}/proxies/active/" }}
+      ]
+    },
+    {
+      "name": "10 — Governance",
+      "item": [
+        { "name": "List Documents", "request": { "method": "GET", "url": "{{base_url}}/governance/documents/" }},
+        { "name": "Create Document", "request": { "method": "POST", "url": "{{base_url}}/governance/documents/", "body": { "mode": "raw", "raw": "{\n  \"title\": \"Reglement Interieur 2025\",\n  \"document_type\": \"reglement\",\n  \"content\": \"Article 1. ...\",\n  \"is_published\": true\n}" }}},
+        { "name": "List Elections", "request": { "method": "GET", "url": "{{base_url}}/governance/elections/" }},
+        { "name": "Create Election", "request": { "method": "POST", "url": "{{base_url}}/governance/elections/", "body": { "mode": "raw", "raw": "{\n  \"title\": \"Election Bureau 2025\",\n  \"election_type\": \"secret\",\n  \"start_date\": \"2025-12-01\"\n}" }}},
+        { "name": "Open Election", "request": { "method": "POST", "url": "{{base_url}}/governance/elections/{{election_id}}/open/" }},
+        { "name": "Vote", "request": { "method": "POST", "url": "{{base_url}}/governance/elections/{{election_id}}/vote/", "body": { "mode": "raw", "raw": "{\n  \"candidate\": \"{{candidate_id}}\"\n}" }}},
+        { "name": "Close Election", "request": { "method": "POST", "url": "{{base_url}}/governance/elections/{{election_id}}/close/" }},
+        { "name": "Election Results", "request": { "method": "GET", "url": "{{base_url}}/governance/elections/{{election_id}}/results/" }},
+        { "name": "List Announcements", "request": { "method": "GET", "url": "{{base_url}}/governance/announcements/" }},
+        { "name": "Create Announcement", "request": { "method": "POST", "url": "{{base_url}}/governance/announcements/", "body": { "mode": "raw", "raw": "{\n  \"title\": \"Reunion extraordinaire\",\n  \"content\": \"Une reunion extraordinaire est convoquee...\",\n  \"priority\": \"high\"\n}" }}},
+        { "name": "Mark Announcement Read", "request": { "method": "POST", "url": "{{base_url}}/governance/announcements/{{announcement_id}}/mark_read/" }},
+        { "name": "List Polls", "request": { "method": "GET", "url": "{{base_url}}/governance/polls/" }},
+        { "name": "Vote on Poll", "request": { "method": "POST", "url": "{{base_url}}/governance/polls/{{poll_id}}/vote/", "body": { "mode": "raw", "raw": "{\n  \"option\": \"{{option_id}}\"\n}" }}}
+      ]
+    },
+    {
+      "name": "11 — Sanctions",
+      "item": [
+        { "name": "List Sanction Types", "request": { "method": "GET", "url": "{{base_url}}/sanctions/types/" }},
+        { "name": "Create Sanction Type", "request": { "method": "POST", "url": "{{base_url}}/sanctions/types/", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Absence non excusee\",\n  \"slug\": \"absence\",\n  \"amount\": 500,\n  \"is_automatic\": true,\n  \"trigger_event\": \"absence\"\n}" }}},
+        { "name": "List Sanctions", "request": { "method": "GET", "url": "{{base_url}}/sanctions/sanctions/" }},
+        { "name": "Apply Sanction", "request": { "method": "POST", "url": "{{base_url}}/sanctions/sanctions/", "body": { "mode": "raw", "raw": "{\n  \"membership\": \"{{membership_id}}\",\n  \"sanction_type\": \"{{sanction_type_id}}\",\n  \"amount\": 500,\n  \"reason\": \"Absent seance 3 sans excuse\",\n  \"session\": \"{{session_id}}\"\n}" }}},
+        { "name": "Waive Sanction", "request": { "method": "POST", "url": "{{base_url}}/sanctions/sanctions/{{sanction_id}}/waive/" }}
+      ]
+    },
+    {
+      "name": "12 — Events",
+      "item": [
+        { "name": "List Events", "request": { "method": "GET", "url": "{{base_url}}/events/events/" }},
+        { "name": "Create Event", "request": { "method": "POST", "url": "{{base_url}}/events/events/", "body": { "mode": "raw", "raw": "{\n  \"title\": \"Assemblee Generale 2025\",\n  \"event_type\": \"AG\",\n  \"date\": \"2025-12-15\",\n  \"start_time\": \"10:00:00\",\n  \"location\": \"Hotel Dschang Palace\",\n  \"description\": \"AG annuelle avec bilan\"\n}" }}},
+        { "name": "List Event Attendances", "request": { "method": "GET", "url": "{{base_url}}/events/attendances/?event={{event_id}}" }},
+        { "name": "Resync Attendances", "request": { "method": "POST", "url": "{{base_url}}/events/events/{{event_id}}/resync-attendances/" }}
+      ]
+    },
+    {
+      "name": "13 — Notifications",
+      "item": [
+        { "name": "List Notifications", "request": { "method": "GET", "url": "{{base_url}}/notifications/" }},
+        { "name": "Unread Count", "request": { "method": "GET", "url": "{{base_url}}/notifications/unread_count/" }},
+        { "name": "Mark Read", "request": { "method": "POST", "url": "{{base_url}}/notifications/mark_read/", "body": { "mode": "raw", "raw": "{\n  \"ids\": [\"{{notification_id}}\"]\n}" }}},
+        { "name": "Mark All Read", "request": { "method": "POST", "url": "{{base_url}}/notifications/mark_all_read/" }},
+        { "name": "Get Preferences", "request": { "method": "GET", "url": "{{base_url}}/notifications/preferences/" }},
+        { "name": "Update Preferences", "request": { "method": "PUT", "url": "{{base_url}}/notifications/preferences/", "body": { "mode": "raw", "raw": "{\n  \"email_enabled\": true,\n  \"sms_enabled\": false,\n  \"whatsapp_enabled\": true,\n  \"push_enabled\": true,\n  \"muted_types\": [\"new_message\"]\n}" }}}
+      ]
+    },
+    {
+      "name": "14 — Chat",
+      "item": [
+        { "name": "List Conversations", "event": [{ "listen": "test", "script": { "exec": ["var r = pm.response.json(); if (r.length) pm.collectionVariables.set('conversation_id', r[0].id);"]}}], "request": { "method": "GET", "url": "{{base_url}}/chat/conversations/" }},
+        { "name": "General Channel", "request": { "method": "GET", "url": "{{base_url}}/chat/conversations/general/" }},
+        { "name": "Create Private Conversation", "request": { "method": "POST", "url": "{{base_url}}/chat/conversations/private/", "body": { "mode": "raw", "raw": "{\n  \"member_id\": \"{{membership_id}}\"\n}" }}},
+        { "name": "Create Group", "request": { "method": "POST", "url": "{{base_url}}/chat/conversations/group/", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Comite Finance\",\n  \"description\": \"Discussion finance\",\n  \"member_ids\": [\"{{membership_id}}\"]\n}" }}},
+        { "name": "Get Messages", "request": { "method": "GET", "url": "{{base_url}}/chat/conversations/{{conversation_id}}/messages/" }},
+        { "name": "Send Message", "request": { "method": "POST", "url": "{{base_url}}/chat/conversations/{{conversation_id}}/send/", "body": { "mode": "raw", "raw": "{\n  \"content\": \"Bonjour tout le monde !\",\n  \"message_type\": \"text\"\n}" }}},
+        { "name": "Mark Conversation Read", "request": { "method": "POST", "url": "{{base_url}}/chat/conversations/{{conversation_id}}/read/" }}
+      ]
+    },
+    {
+      "name": "15 — Subscriptions",
+      "item": [
+        { "name": "List Plans", "request": { "method": "GET", "url": "{{base_url}}/subscriptions/plans/", "auth": { "type": "noauth" }}},
+        { "name": "My Subscription", "request": { "method": "GET", "url": "{{base_url}}/subscriptions/my-subscription/" }},
+        { "name": "Recommended Plan", "request": { "method": "GET", "url": "{{base_url}}/subscriptions/recommended-plan/" }},
+        { "name": "Change Plan", "request": { "method": "POST", "url": "{{base_url}}/subscriptions/change-plan/", "body": { "mode": "raw", "raw": "{\n  \"plan_slug\": \"quartier\"\n}" }}},
+        { "name": "Initiate Payment", "request": { "method": "POST", "url": "{{base_url}}/subscriptions/payments/initiate/", "body": { "mode": "raw", "raw": "{\n  \"plan_slug\": \"quartier\",\n  \"billing_cycle\": \"monthly\"\n}" }}},
+        { "name": "Confirm Payment", "request": { "method": "POST", "url": "{{base_url}}/subscriptions/payments/{{payment_id}}/confirm/", "body": { "mode": "raw", "raw": "{\n  \"reference\": \"TXN-123456\"\n}" }}},
+        { "name": "Cancel Subscription", "request": { "method": "POST", "url": "{{base_url}}/subscriptions/cancel/" }},
+        { "name": "Payment History", "request": { "method": "GET", "url": "{{base_url}}/subscriptions/payments/" }}
+      ]
+    },
+    {
+      "name": "16 — Approvals",
+      "item": [
+        { "name": "List Approval Handlers", "request": { "method": "GET", "url": "{{base_url}}/approvals/handlers/" }},
+        { "name": "Create Approval Request", "request": { "method": "POST", "url": "{{base_url}}/approvals/request/", "body": { "mode": "raw", "raw": "{\n  \"handler\": \"loan_approval\",\n  \"target_id\": \"{{loan_id}}\",\n  \"note\": \"Demande d'approbation pret\"\n}" }}},
+        { "name": "Approve", "request": { "method": "POST", "url": "{{base_url}}/approvals/{{approval_id}}/approve/", "body": { "mode": "raw", "raw": "{\n  \"note\": \"Approuve\"\n}" }}},
+        { "name": "Reject", "request": { "method": "POST", "url": "{{base_url}}/approvals/{{approval_id}}/reject/", "body": { "mode": "raw", "raw": "{\n  \"note\": \"Refuse - budget insuffisant\"\n}" }}},
+        { "name": "Cancel", "request": { "method": "POST", "url": "{{base_url}}/approvals/{{approval_id}}/cancel/" }}
+      ]
+    }
+  ]
+}

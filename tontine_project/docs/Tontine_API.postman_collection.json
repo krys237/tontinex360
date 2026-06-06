@@ -1,0 +1,678 @@
+{
+  "info": {
+    "_postman_id": "tontine-api-2026",
+    "name": "Tontine — API complète",
+    "description": "Collection de test : onboarding, abonnements, cycles, rapports de séance.\n\n**Pré-requis** : configurer les variables de collection :\n- `baseUrl` : URL de l'API (ex: http://localhost:8000)\n- `telephone` : numéro pour l'inscription (ex: +237600000000)\n- `password` : mot de passe (ex: secret1234)\n\nLes variables `accessToken`, `refreshToken`, `associationSlug`, `paymentId`, `reportId` sont remplies automatiquement par les scripts de test. Renseigner manuellement `cycleId` et `sessionId` pour tester les endpoints calendrier/rapports.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8000", "type": "string" },
+    { "key": "telephone", "value": "+237600000000", "type": "string" },
+    { "key": "password", "value": "secret1234", "type": "string" },
+    { "key": "otp", "value": "", "type": "string", "description": "À renseigner après réception du SMS" },
+    { "key": "accessToken", "value": "", "type": "string" },
+    { "key": "refreshToken", "value": "", "type": "string" },
+    { "key": "associationSlug", "value": "", "type": "string" },
+    { "key": "paymentId", "value": "", "type": "string" },
+    { "key": "cycleId", "value": "", "type": "string", "description": "À renseigner manuellement (cycle existant)" },
+    { "key": "sessionId", "value": "", "type": "string", "description": "À renseigner manuellement (séance existante)" },
+    { "key": "reportId", "value": "", "type": "string" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{accessToken}}", "type": "string" }
+    ]
+  },
+  "item": [
+    {
+      "name": "1 — Onboarding",
+      "description": "Flux complet : inscription → OTP → création association → trial 90 jours auto-créé.",
+      "item": [
+        {
+          "name": "1.1 Register",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/register/", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"telephone\": \"{{telephone}}\",\n  \"first_name\": \"Jean\",\n  \"last_name\": \"Dupont\",\n  \"email\": \"jean.dupont@example.com\",\n  \"password\": \"{{password}}\",\n  \"password_confirm\": \"{{password}}\"\n}"
+            },
+            "description": "Crée un User inactif. Envoie un OTP au téléphone fourni. Retourne déjà des tokens JWT (mais le compte doit être validé par OTP avant d'être pleinement actif)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('Tokens présents', () => {",
+                  "  pm.expect(json.tokens.access).to.be.a('string');",
+                  "  pm.expect(json.tokens.refresh).to.be.a('string');",
+                  "});",
+                  "pm.collectionVariables.set('accessToken', json.tokens.access);",
+                  "pm.collectionVariables.set('refreshToken', json.tokens.refresh);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.2 Validate OTP",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/valid-otp/", "host": ["{{baseUrl}}"], "path": ["api", "auth", "valid-otp", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"telephone\": \"{{telephone}}\",\n  \"otp\": \"{{otp}}\"\n}"
+            },
+            "description": "Valide le code OTP reçu par SMS. Active le compte (`is_active=True`)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('OTP validé', () => pm.expect(pm.response.json().status).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.3 Login",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/login/", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"telephone\": \"{{telephone}}\",\n  \"password\": \"{{password}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('accessToken', json.tokens.access);",
+                  "pm.collectionVariables.set('refreshToken', json.tokens.refresh);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.4 Create Association",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/associations/create/", "host": ["{{baseUrl}}"], "path": ["api", "associations", "create", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Tontine Demo Postman\",\n  \"slug\": \"tontine-demo-postman\",\n  \"description\": \"Association créée pour les tests Postman\",\n  \"city\": \"Douala\",\n  \"region\": \"Littoral\"\n}"
+            },
+            "description": "Crée l'association. Side effects :\n- Subscription en TRIALING (plan Famille, 90 jours)\n- Membership fondateur, rôle Président, permissions `*`\n- Rôles, positions de bureau, sanctions, caisse principale créés par signal"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('Subscription en trial', () => pm.expect(json.subscription_status).to.eql('trialing'));",
+                  "pm.test('trial_end ~90 jours', () => pm.expect(json.trial_end).to.be.a('string'));",
+                  "pm.collectionVariables.set('associationSlug', json.association.slug);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2 — Lecture (plans, abonnement, recommandation)",
+      "item": [
+        {
+          "name": "2.1 List Plans (public)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/subscriptions/plans/", "host": ["{{baseUrl}}"], "path": ["api", "subscriptions", "plans", ""] },
+            "description": "Liste publique des 6 plans (Famille, Village, Quartier, Pro, VIP, Président). Pas d'auth requise."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const results = pm.response.json().results || pm.response.json();",
+                  "pm.test('6 plans seedés', () => pm.expect(results.length).to.be.at.least(6));",
+                  "const slugs = results.map(p => p.slug);",
+                  "['famille','village','quartier','pro','vip','president'].forEach(s =>",
+                  "  pm.test(`plan ${s} présent`, () => pm.expect(slugs).to.include(s))",
+                  ");"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.2 My Subscription",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-Tenant", "value": "{{associationSlug}}" }],
+            "url": { "raw": "{{baseUrl}}/api/subscriptions/my-subscription/", "host": ["{{baseUrl}}"], "path": ["api", "subscriptions", "my-subscription", ""] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('plan = famille', () => pm.expect(json.plan.slug).to.eql('famille'));",
+                  "pm.test('status = trialing', () => pm.expect(json.status).to.eql('trialing'));",
+                  "pm.test('is_usable = true', () => pm.expect(json.is_usable).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.3 Recommended Plan (Mesure 90j)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-Tenant", "value": "{{associationSlug}}" }],
+            "url": { "raw": "{{baseUrl}}/api/subscriptions/recommended-plan/", "host": ["{{baseUrl}}"], "path": ["api", "subscriptions", "recommended-plan", ""] },
+            "description": "Calcule le plan recommandé selon l'activité des 90 derniers jours.\n- Cagnotte mensuelle moyenne (depuis SessionPot.total_collected)\n- Nombre de membres actifs"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Plan recommandé fourni', () => pm.expect(json.recommended_plan).to.be.an('object'));",
+                  "pm.test('Métriques fournies', () => {",
+                  "  pm.expect(json.metrics.window_days).to.eql(90);",
+                  "  pm.expect(json.metrics.members_count).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.4 Payment History",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-Tenant", "value": "{{associationSlug}}" }],
+            "url": { "raw": "{{baseUrl}}/api/subscriptions/payments/", "host": ["{{baseUrl}}"], "path": ["api", "subscriptions", "payments", ""] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3 — Actions (Président)",
+      "item": [
+        {
+          "name": "3.1 Change Plan (upgrade vers Quartier)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Tenant", "value": "{{associationSlug}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/subscriptions/change-plan/", "host": ["{{baseUrl}}"], "path": ["api", "subscriptions", "change-plan", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plan_slug\": \"quartier\",\n  \"billing_cycle\": \"monthly\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('plan changé', () => pm.expect(json.plan.slug).to.eql('quartier'));",
+                  "pm.test('billing_cycle = monthly', () => pm.expect(json.billing_cycle).to.eql('monthly'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.2 Initiate Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Tenant", "value": "{{associationSlug}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/subscriptions/payments/initiate/", "host": ["{{baseUrl}}"], "path": ["api", "subscriptions", "payments", "initiate", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"billing_cycle\": \"monthly\",\n  \"payment_method\": \"mobile_money\"\n}"
+            },
+            "description": "Crée un Payment en `pending` pour la prochaine période. Le `paymentId` est sauvegardé pour la confirmation."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('Payment pending', () => pm.expect(json.status).to.eql('pending'));",
+                  "pm.test('Period_start renseigné', () => pm.expect(json.period_start).to.be.a('string'));",
+                  "pm.collectionVariables.set('paymentId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.3 Confirm Payment (manuel)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Tenant", "value": "{{associationSlug}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/subscriptions/payments/{{paymentId}}/confirm/",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "subscriptions", "payments", "{{paymentId}}", "confirm", ""]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider_reference\": \"MTN-MOMO-TEST-001\"\n}"
+            },
+            "description": "⚠️ Endpoint manuel temporaire. Sera remplacé par un webhook quand le hub de paiement sera intégré.\n\nSide effect : signal post_save → SubscriptionService.activate_from_payment() → status=ACTIVE, current_period_* calculés."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Payment completed', () => pm.expect(json.payment.status).to.eql('completed'));",
+                  "pm.test('paid_at renseigné', () => pm.expect(json.payment.paid_at).to.be.a('string'));",
+                  "pm.test('Subscription active', () => pm.expect(json.subscription.status).to.eql('active'));",
+                  "pm.test('current_period_start calé', () => pm.expect(json.subscription.current_period_start).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.4 Cancel auto_renew",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "X-Tenant", "value": "{{associationSlug}}" }],
+            "url": { "raw": "{{baseUrl}}/api/subscriptions/cancel/", "host": ["{{baseUrl}}"], "path": ["api", "subscriptions", "cancel", ""] },
+            "description": "Désactive le renouvellement automatique. L'abonnement reste actif jusqu'à `current_period_end`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('auto_renew false', () => pm.expect(json.auto_renew).to.be.false);",
+                  "pm.test('cancelled_at renseigné', () => pm.expect(json.cancelled_at).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4 — Cas d'erreur",
+      "item": [
+        {
+          "name": "4.1 Plan inexistant (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Tenant", "value": "{{associationSlug}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/subscriptions/change-plan/", "host": ["{{baseUrl}}"], "path": ["api", "subscriptions", "change-plan", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plan_slug\": \"plan-inexistant\",\n  \"billing_cycle\": \"monthly\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.2 Sans token (401)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [{ "key": "X-Tenant", "value": "{{associationSlug}}" }],
+            "url": { "raw": "{{baseUrl}}/api/subscriptions/my-subscription/", "host": ["{{baseUrl}}"], "path": ["api", "subscriptions", "my-subscription", ""] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.3 Confirmer paiement déjà completed (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Tenant", "value": "{{associationSlug}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/subscriptions/payments/{{paymentId}}/confirm/",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "subscriptions", "payments", "{{paymentId}}", "confirm", ""]
+            },
+            "body": { "mode": "raw", "raw": "{}" },
+            "description": "Rejouer la confirmation 3.3 → doit échouer car le paiement est déjà completed."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6 — Cycles & Calendrier",
+      "description": "Compteur de séances pour le calendrier front. Renseigne `cycleId` dans les variables.",
+      "item": [
+        {
+          "name": "6.1 Sessions stats (calendrier)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-Tenant", "value": "{{associationSlug}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/cycles/cycles/{{cycleId}}/sessions-stats/",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cycles", "cycles", "{{cycleId}}", "sessions-stats", ""]
+            },
+            "description": "Renvoie le compteur de séances pour le calendrier :\n- total / completed / remaining / in_progress / scheduled / cancelled / postponed\n- progress_percentage\n- next_session, last_session\n- liste compacte de toutes les séances (sessions[])"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Champs principaux présents', () => {",
+                  "  pm.expect(json).to.have.property('total_sessions');",
+                  "  pm.expect(json).to.have.property('completed');",
+                  "  pm.expect(json).to.have.property('remaining');",
+                  "  pm.expect(json).to.have.property('progress_percentage');",
+                  "  pm.expect(json.sessions).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "7 — Rapports de séance (Bureau)",
+      "description": "Rapports individuels par membre du bureau (Président, Trésorier, etc.). Un seul rapport par (séance, membre du bureau). Renseigne `sessionId` dans les variables avant de lancer.",
+      "item": [
+        {
+          "name": "7.1 Créer rapport (brouillon)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Tenant", "value": "{{associationSlug}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/cycles/session-reports/", "host": ["{{baseUrl}}"], "path": ["api", "cycles", "session-reports", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"session\": \"{{sessionId}}\",\n  \"title\": \"Rapport présidentiel\",\n  \"content\": \"Lors de cette séance, nous avons abordé les points suivants...\",\n  \"publish\": false\n}"
+            },
+            "description": "Crée un rapport en brouillon. Le BureauMember est résolu auto depuis l'utilisateur connecté. Réservé aux membres du bureau du cycle de la séance."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('Brouillon', () => pm.expect(json.is_published).to.be.false);",
+                  "pm.test('Auteur peut éditer', () => pm.expect(json.can_edit).to.be.true);",
+                  "pm.collectionVariables.set('reportId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.2 Lister rapports d'une séance",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-Tenant", "value": "{{associationSlug}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/cycles/session-reports/?session={{sessionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cycles", "session-reports", ""],
+              "query": [{ "key": "session", "value": "{{sessionId}}" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.3 Modifier rapport (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Tenant", "value": "{{associationSlug}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/cycles/session-reports/{{reportId}}/", "host": ["{{baseUrl}}"], "path": ["api", "cycles", "session-reports", "{{reportId}}", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Contenu mis à jour avec corrections.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.4 Publier rapport (notifie tous les membres)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "X-Tenant", "value": "{{associationSlug}}" }],
+            "url": { "raw": "{{baseUrl}}/api/cycles/session-reports/{{reportId}}/publish/", "host": ["{{baseUrl}}"], "path": ["api", "cycles", "session-reports", "{{reportId}}", "publish", ""] },
+            "description": "📣 Side effect : crée une notification `session_report_published` pour tous les membres actifs de l'association."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Rapport publié', () => pm.expect(json.is_published).to.be.true);",
+                  "pm.test('published_at renseigné', () => pm.expect(json.published_at).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.5 Ajouter pièce jointe",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "X-Tenant", "value": "{{associationSlug}}" }],
+            "url": { "raw": "{{baseUrl}}/api/cycles/session-reports/{{reportId}}/attachments/", "host": ["{{baseUrl}}"], "path": ["api", "cycles", "session-reports", "{{reportId}}", "attachments", ""] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": [] },
+                { "key": "filename", "value": "rapport.pdf", "type": "text" }
+              ]
+            },
+            "description": "Upload multipart d'une pièce jointe. Sélectionne un fichier dans Postman avant d'envoyer."
+          }
+        },
+        {
+          "name": "7.6 Dépublier rapport",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "X-Tenant", "value": "{{associationSlug}}" }],
+            "url": { "raw": "{{baseUrl}}/api/cycles/session-reports/{{reportId}}/unpublish/", "host": ["{{baseUrl}}"], "path": ["api", "cycles", "session-reports", "{{reportId}}", "unpublish", ""] }
+          }
+        },
+        {
+          "name": "7.7 Supprimer rapport",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "X-Tenant", "value": "{{associationSlug}}" }],
+            "url": { "raw": "{{baseUrl}}/api/cycles/session-reports/{{reportId}}/", "host": ["{{baseUrl}}"], "path": ["api", "cycles", "session-reports", "{{reportId}}", ""] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "8 — Auth utilitaires",
+      "item": [
+        {
+          "name": "8.1 Refresh token",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/token/refresh/", "host": ["{{baseUrl}}"], "path": ["api", "auth", "token", "refresh", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh\": \"{{refreshToken}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('accessToken', pm.response.json().access);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.2 Me",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/auth/me/", "host": ["{{baseUrl}}"], "path": ["api", "auth", "me", ""] }
+          }
+        }
+      ]
+    }
+  ]
+}

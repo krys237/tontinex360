@@ -1,0 +1,209 @@
+@import "tailwindcss";
+
+/*
+ * TontineX360 — Design System Web
+ * Tokens EXACTS extraits du Figma (figma-extract/tokens.json)
+ * Source: Figma file 44I2ep2im2IaAhPhMov5Zv
+ */
+
+@theme {
+  /* === PRIMARY : vert lime TontineX360 === */
+  --color-primary-50:  #F1F8E8;
+  --color-primary-100: #E0F0CC;
+  --color-primary-200: #C7E29F;
+  --color-primary-300: #A8D26A;
+  --color-primary-400: #97BD4D;
+  --color-primary-500: #87C241;  /* MAIN — boutons, accents */
+  --color-primary-600: #5A8C3F;
+  --color-primary-700: #43793F;  /* texte actif sidebar, hover */
+  --color-primary-800: #3D6A2A;
+  --color-primary-900: #232B1D;
+
+  /* Aliases pour compat */
+  --color-primary:       #87C241;
+  --color-primary-dark:  #43793F;
+  --color-primary-light: #F1F8E8;
+  --color-secondary:     #87C241;
+  --color-secondary-light: #F1F8E8;
+
+  /* === ACCENT : jaune doré === */
+  --color-accent-100: #FBF6CF;
+  --color-accent-200: #EFDB99;
+  --color-accent-400: #EDD743;
+  --color-accent-500: #E5BC2C;
+  --color-accent: #E5BC2C;
+  --color-accent-light: #FBF6CF;
+
+  /* === DANGER === */
+  --color-danger:       #9A5356;
+  --color-danger-dark:  #7A4044;
+  --color-danger-light: #FEE2E2;
+
+  /* === STATUS === */
+  --color-success: #34C759;
+  --color-info:    #007AFF;
+  --color-warning: #E5BC2C;
+  --color-error:   #FF3B30;
+
+  /* === NEUTRAL === */
+  --color-white:    #FFFFFF;
+  --color-gray-50:  #FAFAFA;
+  --color-gray-100: #F4F4F5;
+  --color-gray-200: #EBEBEB;
+  --color-gray-300: #DFDEDE;
+  --color-gray-400: #A0A0A0;
+  --color-gray-500: #707070;
+  --color-gray-700: #47563D;  /* texte foncé verdâtre Figma */
+  --color-gray-800: #1E3233;
+  --color-gray-900: #000000;
+
+  /* Sidebar light (Figma) — pas fond foncé */
+  --color-sidebar: #FFFFFF;
+  --color-sidebar-bg: #FAFAFA;
+  --color-sidebar-text: #707070;
+  --color-sidebar-text-active: #43793F;
+  --color-sidebar-bg-active: #F1F8E8;
+  --color-sidebar-border-active: #87C241;
+
+  /* Surface */
+  --color-background: #FAFAFA;
+  --color-surface:    #F4F4F5;
+  --color-border:     #EBEBEB;
+  --color-text:       #1E3233;
+  --color-text-muted: #707070;
+  --color-text-light: #A0A0A0;
+
+  /* === TYPO : Poppins (Figma) === */
+  --font-sans: "Poppins", ui-sans-serif, system-ui, sans-serif;
+
+  /* === RADIUS === */
+  --radius-sm:   8px;
+  --radius-md:   16px;
+  --radius-lg:   24px;
+  --radius-xl:   32px;
+  --radius-pill: 9999px;
+
+  /* === SHADOW === */
+  --shadow-card:   0 2px 8px rgba(67, 121, 63, 0.08);
+  --shadow-lifted: 0 8px 24px rgba(67, 121, 63, 0.12);
+  --shadow-hero:   0 12px 40px rgba(67, 121, 63, 0.18);
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--color-background);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer base {
+  :root {
+    --radius: 8px;
+  }
+
+  /* Scrollbars discrètes */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-gray-300);
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-gray-400); }
+
+  *:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  /*
+   * Responsive globals : éviter les débordements horizontaux sur mobile.
+   * Toutes les tables non wrappées sont rendues scrollables horizontalement.
+   * Toutes les images se contraignent à 100% width par défaut.
+   */
+  html, body {
+    overflow-x: hidden;
+  }
+
+  /* Wrapper auto pour les tables (fallback si pas dans un overflow-x-auto) */
+  table {
+    max-width: 100%;
+  }
+}
+
+@layer components {
+  /* Card brand */
+  .card-tx {
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-card);
+    padding: 1.5rem;
+  }
+
+  /* Hero gradient vert Figma (lime → vert foncé) */
+  .hero-tx {
+    background: linear-gradient(135deg, #87C241 0%, #43793F 100%);
+    color: white;
+    border-radius: var(--radius-md);
+    padding: 2rem;
+    box-shadow: var(--shadow-hero);
+  }
+
+  /* Banner info doux */
+  .banner-tx {
+    background: var(--color-primary-50);
+    border: 1px solid var(--color-primary-200);
+    color: var(--color-primary-700);
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+  }
+
+  /* Sidebar item Figma style */
+  .sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    color: var(--color-gray-500);
+    font-size: 13px;
+    font-weight: 500;
+    border-left: 3px solid transparent;
+    transition: all 150ms;
+  }
+  .sidebar-item:hover {
+    background: var(--color-gray-100);
+    color: var(--color-gray-700);
+  }
+  .sidebar-item-active {
+    background: var(--color-primary-50);
+    color: var(--color-primary-700);
+    border-left-color: var(--color-primary-500);
+    font-weight: 600;
+  }
+
+  /* Boutons brand */
+  .btn-tx-primary {
+    background: var(--color-primary-500);
+    color: white;
+    font-weight: 600;
+    padding: 12px 20px;
+    border-radius: var(--radius-sm);
+    transition: all 150ms;
+    font-size: 14px;
+  }
+  .btn-tx-primary:hover { background: var(--color-primary-700); }
+
+  .btn-tx-secondary {
+    background: white;
+    color: var(--color-primary-700);
+    border: 1.5px solid var(--color-primary-500);
+    font-weight: 600;
+    padding: 12px 20px;
+    border-radius: var(--radius-sm);
+    transition: all 150ms;
+    font-size: 14px;
+  }
+  .btn-tx-secondary:hover { background: var(--color-primary-50); }
+}

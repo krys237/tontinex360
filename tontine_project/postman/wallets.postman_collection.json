@@ -1,0 +1,220 @@
+{
+  "info": {
+    "name": "Tontine — Wallets virtuels",
+    "_postman_id": "b8f2e4c6-1d2a-4f3a-9c01-3d8a7e1b9002",
+    "description": "Tests pour le système de wallets virtuels (apps.wallets). Couvre la consultation par un membre, la vue bureau, ajustements manuels et règlement de fin de cycle.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key": "base_url", "value": "http://localhost:8010/api"},
+    {"key": "tenant_slug", "value": "tontine-amis"},
+    {"key": "member_token", "value": ""},
+    {"key": "president_token", "value": ""},
+    {"key": "wallet_id", "value": ""},
+    {"key": "target_membership_id", "value": ""},
+    {"key": "cycle_id", "value": ""},
+    {"key": "session_id", "value": ""}
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{"key": "token", "value": "{{member_token}}", "type": "string"}]
+  },
+  "item": [
+    {
+      "name": "1. Mon wallet (membre)",
+      "item": [
+        {
+          "name": "GET mon wallet",
+          "request": {
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{member_token}}", "type": "string"}]},
+            "method": "GET",
+            "header": [{"key": "X-Tenant", "value": "{{tenant_slug}}"}],
+            "url": {"raw": "{{base_url}}/wallets/me/", "host": ["{{base_url}}"], "path": ["wallets", "me", ""]}
+          },
+          "event": [
+            {"listen": "test", "script": {"type": "text/javascript", "exec": [
+              "pm.test('Wallet retourné', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.collectionVariables.set('wallet_id', pm.response.json().id);",
+              "});"
+            ]}}
+          ]
+        },
+        {
+          "name": "GET historique de mes écritures",
+          "request": {
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{member_token}}", "type": "string"}]},
+            "method": "GET",
+            "header": [{"key": "X-Tenant", "value": "{{tenant_slug}}"}],
+            "url": {
+              "raw": "{{base_url}}/wallets/me/entries/?cycle={{cycle_id}}&source_type=auction_premium",
+              "host": ["{{base_url}}"],
+              "path": ["wallets", "me", "entries", ""],
+              "query": [
+                {"key": "cycle", "value": "{{cycle_id}}"},
+                {"key": "source_type", "value": "auction_premium"}
+              ]
+            }
+          },
+          "description": "Filtres possibles : ?session={{session_id}}, ?cycle={{cycle_id}}, ?source_type=auction_premium|loan_interest|sanction_payment|contribution_default|default_compensation|expense|manual_adjustment"
+        },
+        {
+          "name": "GET récap par cycle",
+          "request": {
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{member_token}}", "type": "string"}]},
+            "method": "GET",
+            "header": [{"key": "X-Tenant", "value": "{{tenant_slug}}"}],
+            "url": {
+              "raw": "{{base_url}}/wallets/me/summary/?cycle={{cycle_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["wallets", "me", "summary", ""],
+              "query": [{"key": "cycle", "value": "{{cycle_id}}"}]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Vue bureau — tous les wallets",
+      "item": [
+        {
+          "name": "Lister tous les wallets",
+          "request": {
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{president_token}}", "type": "string"}]},
+            "method": "GET",
+            "header": [{"key": "X-Tenant", "value": "{{tenant_slug}}"}],
+            "url": {"raw": "{{base_url}}/wallets/wallets/", "host": ["{{base_url}}"], "path": ["wallets", "wallets", ""]}
+          }
+        },
+        {
+          "name": "Détail d'un wallet (bureau)",
+          "request": {
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{president_token}}", "type": "string"}]},
+            "method": "GET",
+            "header": [{"key": "X-Tenant", "value": "{{tenant_slug}}"}],
+            "url": {"raw": "{{base_url}}/wallets/wallets/{{wallet_id}}/", "host": ["{{base_url}}"], "path": ["wallets", "wallets", "{{wallet_id}}", ""]}
+          }
+        },
+        {
+          "name": "Écritures d'un wallet (bureau)",
+          "request": {
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{president_token}}", "type": "string"}]},
+            "method": "GET",
+            "header": [{"key": "X-Tenant", "value": "{{tenant_slug}}"}],
+            "url": {"raw": "{{base_url}}/wallets/wallets/{{wallet_id}}/entries/", "host": ["{{base_url}}"], "path": ["wallets", "wallets", "{{wallet_id}}", "entries", ""]}
+          }
+        },
+        {
+          "name": "Recalculer le solde (bureau)",
+          "request": {
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{president_token}}", "type": "string"}]},
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {"raw": "{{base_url}}/wallets/wallets/{{wallet_id}}/recompute/", "host": ["{{base_url}}"], "path": ["wallets", "wallets", "{{wallet_id}}", "recompute", ""]},
+            "body": {"mode": "raw", "raw": "{}"}
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Ajustements & règlement",
+      "item": [
+        {
+          "name": "Ajustement manuel — crédit",
+          "request": {
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{president_token}}", "type": "string"}]},
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {"raw": "{{base_url}}/wallets/manual-adjustment/", "host": ["{{base_url}}"], "path": ["wallets", "manual-adjustment", ""]},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"membership_id\": \"{{target_membership_id}}\",\n  \"direction\": \"credit\",\n  \"amount\": 1000.00,\n  \"description\": \"Bonus exceptionnel décidé par le bureau\",\n  \"session_id\": \"{{session_id}}\",\n  \"cycle_id\": \"{{cycle_id}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Ajustement manuel — débit",
+          "request": {
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{president_token}}", "type": "string"}]},
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {"raw": "{{base_url}}/wallets/manual-adjustment/", "host": ["{{base_url}}"], "path": ["wallets", "manual-adjustment", ""]},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"membership_id\": \"{{target_membership_id}}\",\n  \"direction\": \"debit\",\n  \"amount\": 500.00,\n  \"description\": \"Correction d'erreur de saisie\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Récap fin de cycle (bureau)",
+          "request": {
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{president_token}}", "type": "string"}]},
+            "method": "GET",
+            "header": [{"key": "X-Tenant", "value": "{{tenant_slug}}"}],
+            "url": {
+              "raw": "{{base_url}}/wallets/cycle-settlement/?cycle={{cycle_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["wallets", "cycle-settlement", ""],
+              "query": [{"key": "cycle", "value": "{{cycle_id}}"}]
+            },
+            "description": "Renvoie le tableau récap : pour chaque membre, total crédits / débits / net du cycle."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Configuration association (rappel)",
+      "item": [
+        {
+          "name": "PATCH settings.wallet de l'association",
+          "request": {
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{president_token}}", "type": "string"}]},
+            "method": "PATCH",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/associations/associations/{{tenant_slug}}/",
+              "host": ["{{base_url}}"],
+              "path": ["associations", "associations", "{{tenant_slug}}", ""]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"settings\": {\n    \"wallet\": {\n      \"auto_compensate_defaults\": true,\n      \"compensation_sources\": [\"auction_premium\", \"loan_interest\", \"sanction_payment\"],\n      \"compensation_window\": \"current_session\",\n      \"rounding_target\": \"treasury\",\n      \"early_resignation_settlement\": false\n    }\n  }\n}"
+            },
+            "description": "Configure le comportement des wallets pour cette association."
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Workflow complet (rappel pour test E2E)",
+      "item": [
+        {
+          "name": "Étape — Clôturer un pot (déclenche distribution)",
+          "request": {
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{president_token}}", "type": "string"}]},
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {"raw": "{{base_url}}/cycles/pots/{{pot_id}}/close/", "host": ["{{base_url}}"], "path": ["cycles", "pots", "{{pot_id}}", "close", ""]},
+            "body": {"mode": "raw", "raw": "{}"},
+            "description": "À la clôture du pot, le service WalletService.process_pot_closure() est appelé automatiquement et distribue : prime d'enchère, intérêts de prêts, sanctions payées, défauts individuels, compensation collective si configurée. Réponse : 'wallet_distribution' agrégé."
+          }
+        }
+      ]
+    }
+  ]
+}

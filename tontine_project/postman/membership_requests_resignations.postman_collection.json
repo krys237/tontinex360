@@ -1,0 +1,593 @@
+{
+  "info": {
+    "name": "Tontine — Adhésions & Démissions",
+    "_postman_id": "a6f1e2c4-9d3b-4f8a-bc11-7e9d2c7e0001",
+    "description": "Tests pour les endpoints MembershipRequest (demandes d'adhésion) et Resignation (démissions) ajoutés à apps.members. Importer aussi l'environnement associé.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key": "base_url", "value": "http://localhost:8010/api"},
+    {"key": "tenant_slug", "value": "tontine-amis"},
+    {"key": "access_token", "value": ""},
+    {"key": "refresh_token", "value": ""},
+    {"key": "candidate_token", "value": "", "description": "Token JWT du futur adhérent (non encore membre)"},
+    {"key": "president_token", "value": "", "description": "Token JWT d'un membre du bureau"},
+    {"key": "member_token", "value": "", "description": "Token JWT d'un membre lambda qui démissionne"},
+    {"key": "membership_request_id", "value": ""},
+    {"key": "resignation_id", "value": ""},
+    {"key": "cycle_id", "value": ""}
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {"key": "token", "value": "{{access_token}}", "type": "string"}
+    ]
+  },
+  "item": [
+    {
+      "name": "0. Setup — Authentification",
+      "item": [
+        {
+          "name": "Login candidat (futur adhérent)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{base_url}}/auth/login/", "host": ["{{base_url}}"], "path": ["auth", "login", ""]},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"telephone\": \"+237690000099\",\n  \"password\": \"motdepasse123\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login candidat OK', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('candidate_token', data.tokens.access);",
+                  "  pm.collectionVariables.set('access_token', data.tokens.access);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login président (bureau)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{base_url}}/auth/login/", "host": ["{{base_url}}"], "path": ["auth", "login", ""]},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"telephone\": \"+237690000001\",\n  \"password\": \"motdepasse123\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login président OK', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.collectionVariables.set('president_token', pm.response.json().tokens.access);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login membre (qui démissionnera)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{base_url}}/auth/login/", "host": ["{{base_url}}"], "path": ["auth", "login", ""]},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"telephone\": \"+237690000002\",\n  \"password\": \"motdepasse123\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login membre OK', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.collectionVariables.set('member_token', pm.response.json().tokens.access);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Demandes d'adhésion (MembershipRequest)",
+      "item": [
+        {
+          "name": "Soumettre une demande d'adhésion",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{candidate_token}}", "type": "string"}]
+            },
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/members/membership-requests/",
+              "host": ["{{base_url}}"],
+              "path": ["members", "membership-requests", ""]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cycle\": \"{{cycle_id}}\",\n  \"motivation\": \"Je souhaite rejoindre l'association pour le cycle 2027.\",\n  \"contact_phone\": \"+237690000099\",\n  \"contact_email\": \"candidat@example.com\"\n}"
+            },
+            "description": "Le candidat (utilisateur authentifié non-membre) soumet sa demande. Le champ `cycle` est optionnel — peut être omis ou null."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Demande créée', () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(data.status).to.equal('pending');",
+                  "  pm.collectionVariables.set('membership_request_id', data.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tentative de doublon (doit échouer)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{candidate_token}}", "type": "string"}]
+            },
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/members/membership-requests/",
+              "host": ["{{base_url}}"],
+              "path": ["members", "membership-requests", ""]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivation\": \"Deuxième tentative\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Doublon refusé', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lister les demandes en attente (bureau)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{president_token}}", "type": "string"}]
+            },
+            "method": "GET",
+            "header": [
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/members/membership-requests/?status=pending",
+              "host": ["{{base_url}}"],
+              "path": ["members", "membership-requests", ""],
+              "query": [{"key": "status", "value": "pending"}]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Liste OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Détail d'une demande",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{president_token}}", "type": "string"}]
+            },
+            "method": "GET",
+            "header": [
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/members/membership-requests/{{membership_request_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["members", "membership-requests", "{{membership_request_id}}", ""]
+            }
+          }
+        },
+        {
+          "name": "Annuler sa propre demande (candidat)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{candidate_token}}", "type": "string"}]
+            },
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/members/membership-requests/{{membership_request_id}}/cancel/",
+              "host": ["{{base_url}}"],
+              "path": ["members", "membership-requests", "{{membership_request_id}}", "cancel", ""]
+            },
+            "body": {"mode": "raw", "raw": "{}"},
+            "description": "Le candidat retire sa demande tant qu'elle est en attente."
+          }
+        },
+        {
+          "name": "Approuver une demande (bureau)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{president_token}}", "type": "string"}]
+            },
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/members/membership-requests/{{membership_request_id}}/approve/",
+              "host": ["{{base_url}}"],
+              "path": ["members", "membership-requests", "{{membership_request_id}}", "approve", ""]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"review_note\": \"Bienvenue dans l'association !\"\n}"
+            },
+            "description": "Approbation par un membre du bureau. Crée un Membership actif pour l'utilisateur."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Demande approuvée', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(data.status).to.equal('approved');",
+                  "  pm.expect(data.resulting_membership).to.not.be.null;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Rejeter une demande (bureau)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{president_token}}", "type": "string"}]
+            },
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/members/membership-requests/{{membership_request_id}}/reject/",
+              "host": ["{{base_url}}"],
+              "path": ["members", "membership-requests", "{{membership_request_id}}", "reject", ""]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"review_note\": \"Désolé, le quota du cycle est atteint.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Demande rejetée', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().status).to.equal('rejected');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Approbation refusée pour un non-bureau",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{member_token}}", "type": "string"}]
+            },
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/members/membership-requests/{{membership_request_id}}/approve/",
+              "host": ["{{base_url}}"],
+              "path": ["members", "membership-requests", "{{membership_request_id}}", "approve", ""]
+            },
+            "body": {"mode": "raw", "raw": "{}"}
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Permission refusée', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Démissions (Resignation)",
+      "item": [
+        {
+          "name": "Soumettre une démission (membre)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{member_token}}", "type": "string"}]
+            },
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/members/resignations/",
+              "host": ["{{base_url}}"],
+              "path": ["members", "resignations", ""]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Déménagement professionnel à Yaoundé.\",\n  \"effective_date\": \"2026-06-30\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Démission créée', () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(data.status).to.equal('pending');",
+                  "  pm.collectionVariables.set('resignation_id', data.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Démission sans motif (doit échouer)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{member_token}}", "type": "string"}]
+            },
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/members/resignations/",
+              "host": ["{{base_url}}"],
+              "path": ["members", "resignations", ""]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Validation refusée', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lister mes démissions (membre)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{member_token}}", "type": "string"}]
+            },
+            "method": "GET",
+            "header": [
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/members/resignations/",
+              "host": ["{{base_url}}"],
+              "path": ["members", "resignations", ""]
+            },
+            "description": "Un membre lambda voit uniquement ses propres démissions."
+          }
+        },
+        {
+          "name": "Lister toutes les démissions (bureau)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{president_token}}", "type": "string"}]
+            },
+            "method": "GET",
+            "header": [
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/members/resignations/",
+              "host": ["{{base_url}}"],
+              "path": ["members", "resignations", ""]
+            }
+          }
+        },
+        {
+          "name": "Détail d'une démission",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{president_token}}", "type": "string"}]
+            },
+            "method": "GET",
+            "header": [
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/members/resignations/{{resignation_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["members", "resignations", "{{resignation_id}}", ""]
+            }
+          }
+        },
+        {
+          "name": "Annuler sa démission (membre)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{member_token}}", "type": "string"}]
+            },
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/members/resignations/{{resignation_id}}/cancel/",
+              "host": ["{{base_url}}"],
+              "path": ["members", "resignations", "{{resignation_id}}", "cancel", ""]
+            },
+            "body": {"mode": "raw", "raw": "{}"}
+          }
+        },
+        {
+          "name": "Approuver une démission (bureau)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{president_token}}", "type": "string"}]
+            },
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/members/resignations/{{resignation_id}}/approve/",
+              "host": ["{{base_url}}"],
+              "path": ["members", "resignations", "{{resignation_id}}", "approve", ""]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"review_note\": \"Démission acceptée. Bonne continuation.\",\n  \"effective_date\": \"2026-06-30\"\n}"
+            },
+            "description": "Approbation par un membre du bureau. Le membership passe en RESIGNED + is_active=False, les rôles et postes de bureau sont désactivés."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Démission approuvée', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(data.status).to.equal('approved');",
+                  "  pm.expect(data.effective_date).to.not.be.null;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Rejeter une démission (bureau)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{president_token}}", "type": "string"}]
+            },
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/members/resignations/{{resignation_id}}/reject/",
+              "host": ["{{base_url}}"],
+              "path": ["members", "resignations", "{{resignation_id}}", "reject", ""]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"review_note\": \"Le bureau souhaite reconsidérer votre situation.\"\n}"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

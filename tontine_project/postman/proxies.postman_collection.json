@@ -1,0 +1,315 @@
+{
+  "info": {
+    "name": "Tontine — Procurations",
+    "_postman_id": "c4f3d5a8-2e7b-4d9c-a112-9e8f1d2c0003",
+    "description": "Tests pour la gestion des procurations (apps.proxies). Un membre principal délègue à un autre membre la collecte physique de sa tontine pour une séance précise.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key": "base_url", "value": "http://localhost:8010/api"},
+    {"key": "tenant_slug", "value": "tontine-amis"},
+    {"key": "principal_token", "value": "", "description": "JWT du membre titulaire"},
+    {"key": "proxy_token", "value": "", "description": "JWT du procurataire"},
+    {"key": "president_token", "value": "", "description": "JWT d'un membre du bureau"},
+    {"key": "proxy_membership_id", "value": "", "description": "Membership du procurataire"},
+    {"key": "session_id", "value": ""},
+    {"key": "tontine_type_id", "value": ""},
+    {"key": "pot_id", "value": ""},
+    {"key": "principal_membership_id", "value": ""},
+    {"key": "proxy_id", "value": "", "description": "ID de la procuration créée"}
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{"key": "token", "value": "{{principal_token}}", "type": "string"}]
+  },
+  "item": [
+    {
+      "name": "0. Configuration association (rappel)",
+      "item": [
+        {
+          "name": "PATCH settings.proxy",
+          "request": {
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{president_token}}", "type": "string"}]},
+            "method": "PATCH",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/associations/associations/{{tenant_slug}}/",
+              "host": ["{{base_url}}"],
+              "path": ["associations", "associations", "{{tenant_slug}}", ""]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"settings\": {\n    \"proxy\": {\n      \"require_document\": false,\n      \"require_approval\": true\n    }\n  }\n}"
+            },
+            "description": "Configure le comportement des procurations. require_document=true exige document signé/signature à la création. require_approval=false auto-approuve à la création."
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Création par le principal",
+      "item": [
+        {
+          "name": "Créer une procuration (JSON simple)",
+          "request": {
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{principal_token}}", "type": "string"}]},
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {"raw": "{{base_url}}/proxies/", "host": ["{{base_url}}"], "path": ["proxies", ""]},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"proxy\": \"{{proxy_membership_id}}\",\n  \"session\": \"{{session_id}}\",\n  \"tontine_type\": \"{{tontine_type_id}}\",\n  \"reason\": \"Voyage professionnel hors de la ville\"\n}"
+            }
+          },
+          "event": [
+            {"listen": "test", "script": {"type": "text/javascript", "exec": [
+              "pm.test('Procuration créée', () => {",
+              "  pm.response.to.have.status(201);",
+              "  pm.collectionVariables.set('proxy_id', pm.response.json().id);",
+              "});"
+            ]}}
+          ]
+        },
+        {
+          "name": "Créer avec document signé (multipart)",
+          "request": {
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{principal_token}}", "type": "string"}]},
+            "method": "POST",
+            "header": [{"key": "X-Tenant", "value": "{{tenant_slug}}"}],
+            "url": {"raw": "{{base_url}}/proxies/", "host": ["{{base_url}}"], "path": ["proxies", ""]},
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {"key": "proxy", "value": "{{proxy_membership_id}}", "type": "text"},
+                {"key": "session", "value": "{{session_id}}", "type": "text"},
+                {"key": "tontine_type", "value": "{{tontine_type_id}}", "type": "text"},
+                {"key": "reason", "value": "Hospitalisation imprévue", "type": "text"},
+                {"key": "signed_document", "type": "file", "src": []},
+                {"key": "cni_image", "type": "file", "src": []}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Créer procuration globale séance (toutes tontines)",
+          "request": {
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{principal_token}}", "type": "string"}]},
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {"raw": "{{base_url}}/proxies/", "host": ["{{base_url}}"], "path": ["proxies", ""]},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"proxy\": \"{{proxy_membership_id}}\",\n  \"session\": \"{{session_id}}\",\n  \"tontine_type\": null,\n  \"reason\": \"Procuration toutes tontines pour cette séance\"\n}"
+            },
+            "description": "Sans tontine_type : la procuration s'applique à toutes les tontines auxquelles le principal a souscrit pour cette séance."
+          }
+        },
+        {
+          "name": "Doublon refusé (procuration déjà active)",
+          "request": {
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{principal_token}}", "type": "string"}]},
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {"raw": "{{base_url}}/proxies/", "host": ["{{base_url}}"], "path": ["proxies", ""]},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"proxy\": \"{{proxy_membership_id}}\",\n  \"session\": \"{{session_id}}\",\n  \"tontine_type\": \"{{tontine_type_id}}\",\n  \"reason\": \"Tentative de doublon\"\n}"
+            }
+          },
+          "event": [
+            {"listen": "test", "script": {"type": "text/javascript", "exec": [
+              "pm.test('Doublon refusé', () => pm.response.to.have.status(400));"
+            ]}}
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Consultation",
+      "item": [
+        {
+          "name": "Mes procurations (principal)",
+          "request": {
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{principal_token}}", "type": "string"}]},
+            "method": "GET",
+            "header": [{"key": "X-Tenant", "value": "{{tenant_slug}}"}],
+            "url": {
+              "raw": "{{base_url}}/proxies/?status=pending",
+              "host": ["{{base_url}}"],
+              "path": ["proxies", ""],
+              "query": [{"key": "status", "value": "pending"}]
+            }
+          }
+        },
+        {
+          "name": "Procurations reçues (proxy)",
+          "request": {
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{proxy_token}}", "type": "string"}]},
+            "method": "GET",
+            "header": [{"key": "X-Tenant", "value": "{{tenant_slug}}"}],
+            "url": {
+              "raw": "{{base_url}}/proxies/?proxy={{proxy_membership_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["proxies", ""],
+              "query": [{"key": "proxy", "value": "{{proxy_membership_id}}"}]
+            }
+          }
+        },
+        {
+          "name": "Toutes les procurations (bureau)",
+          "request": {
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{president_token}}", "type": "string"}]},
+            "method": "GET",
+            "header": [{"key": "X-Tenant", "value": "{{tenant_slug}}"}],
+            "url": {"raw": "{{base_url}}/proxies/", "host": ["{{base_url}}"], "path": ["proxies", ""]}
+          }
+        },
+        {
+          "name": "Détail procuration",
+          "request": {
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{principal_token}}", "type": "string"}]},
+            "method": "GET",
+            "header": [{"key": "X-Tenant", "value": "{{tenant_slug}}"}],
+            "url": {"raw": "{{base_url}}/proxies/{{proxy_id}}/", "host": ["{{base_url}}"], "path": ["proxies", "{{proxy_id}}", ""]}
+          }
+        },
+        {
+          "name": "Procurations actives pour une séance (bureau, lors du payout)",
+          "request": {
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{president_token}}", "type": "string"}]},
+            "method": "GET",
+            "header": [{"key": "X-Tenant", "value": "{{tenant_slug}}"}],
+            "url": {
+              "raw": "{{base_url}}/proxies/active/?session={{session_id}}&tontine_type={{tontine_type_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["proxies", "active", ""],
+              "query": [
+                {"key": "session", "value": "{{session_id}}"},
+                {"key": "tontine_type", "value": "{{tontine_type_id}}"}
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Validation par le bureau",
+      "item": [
+        {
+          "name": "Approuver une procuration",
+          "request": {
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{president_token}}", "type": "string"}]},
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {"raw": "{{base_url}}/proxies/{{proxy_id}}/approve/", "host": ["{{base_url}}"], "path": ["proxies", "{{proxy_id}}", "approve", ""]},
+            "body": {"mode": "raw", "raw": "{\n  \"review_note\": \"Procuration validée\"\n}"}
+          },
+          "event": [
+            {"listen": "test", "script": {"type": "text/javascript", "exec": [
+              "pm.test('Approuvée', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json().status).to.equal('approved');",
+              "});"
+            ]}}
+          ]
+        },
+        {
+          "name": "Rejeter une procuration",
+          "request": {
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{president_token}}", "type": "string"}]},
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {"raw": "{{base_url}}/proxies/{{proxy_id}}/reject/", "host": ["{{base_url}}"], "path": ["proxies", "{{proxy_id}}", "reject", ""]},
+            "body": {"mode": "raw", "raw": "{\n  \"review_note\": \"Documents insuffisants\"\n}"}
+          }
+        },
+        {
+          "name": "Annuler sa procuration (principal)",
+          "request": {
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{principal_token}}", "type": "string"}]},
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {"raw": "{{base_url}}/proxies/{{proxy_id}}/cancel/", "host": ["{{base_url}}"], "path": ["proxies", "{{proxy_id}}", "cancel", ""]},
+            "body": {"mode": "raw", "raw": "{}"}
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Consommation lors du payout",
+      "item": [
+        {
+          "name": "Distribute avec proxy_id explicite",
+          "request": {
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{president_token}}", "type": "string"}]},
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {"raw": "{{base_url}}/cycles/pots/{{pot_id}}/distribute/", "host": ["{{base_url}}"], "path": ["cycles", "pots", "{{pot_id}}", "distribute", ""]},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"membership_id\": \"{{principal_membership_id}}\",\n  \"shares_claimed\": 1,\n  \"proxy_id\": \"{{proxy_id}}\"\n}"
+            },
+            "description": "Le payout est créé avec received_by=proxy.proxy et proxy_record=proxy_id. La procuration passe en USED."
+          }
+        },
+        {
+          "name": "Distribute sans proxy_id (auto-détection)",
+          "request": {
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{president_token}}", "type": "string"}]},
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {"raw": "{{base_url}}/cycles/pots/{{pot_id}}/distribute/", "host": ["{{base_url}}"], "path": ["cycles", "pots", "{{pot_id}}", "distribute", ""]},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"membership_id\": \"{{principal_membership_id}}\",\n  \"shares_claimed\": 1\n}"
+            },
+            "description": "Si une procuration approuvée existe pour ce membre/séance/tontine, elle est appliquée automatiquement."
+          }
+        },
+        {
+          "name": "Auction avec proxy_id",
+          "request": {
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{president_token}}", "type": "string"}]},
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Tenant", "value": "{{tenant_slug}}"}
+            ],
+            "url": {"raw": "{{base_url}}/cycles/pots/{{pot_id}}/auction/", "host": ["{{base_url}}"], "path": ["cycles", "pots", "{{pot_id}}", "auction", ""]},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"winner_membership_id\": \"{{principal_membership_id}}\",\n  \"bid_amount\": 5000,\n  \"proxy_id\": \"{{proxy_id}}\"\n}"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

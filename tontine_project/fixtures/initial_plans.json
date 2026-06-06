@@ -1,0 +1,103 @@
+[
+  {
+    "model": "subscriptions.plan",
+    "fields": {
+      "name": "Gratuit",
+      "slug": "free",
+      "price_monthly": "0.00",
+      "price_yearly": "0.00",
+      "max_members": 10,
+      "max_tontine_types": 1,
+      "max_cycles": 1,
+      "trial_days": 0,
+      "display_order": 0,
+      "features": {
+        "loans_enabled": false,
+        "elections_enabled": false,
+        "export_pdf": false,
+        "export_excel": false,
+        "sms_notifications": false,
+        "api_access": false,
+        "custom_roles": false,
+        "advanced_reports": false,
+        "audit_log": false
+      }
+    }
+  },
+  {
+    "model": "subscriptions.plan",
+    "fields": {
+      "name": "Starter",
+      "slug": "starter",
+      "price_monthly": "5000.00",
+      "price_yearly": "50000.00",
+      "max_members": 30,
+      "max_tontine_types": 3,
+      "max_cycles": 2,
+      "trial_days": 30,
+      "display_order": 1,
+      "features": {
+        "loans_enabled": true,
+        "elections_enabled": true,
+        "export_pdf": true,
+        "export_excel": false,
+        "sms_notifications": false,
+        "api_access": false,
+        "custom_roles": true,
+        "advanced_reports": false,
+        "audit_log": false
+      }
+    }
+  },
+  {
+    "model": "subscriptions.plan",
+    "fields": {
+      "name": "Pro",
+      "slug": "pro",
+      "price_monthly": "15000.00",
+      "price_yearly": "150000.00",
+      "max_members": 100,
+      "max_tontine_types": 10,
+      "max_cycles": 5,
+      "trial_days": 30,
+      "display_order": 2,
+      "features": {
+        "loans_enabled": true,
+        "elections_enabled": true,
+        "export_pdf": true,
+        "export_excel": true,
+        "sms_notifications": true,
+        "api_access": false,
+        "custom_roles": true,
+        "advanced_reports": true,
+        "audit_log": true
+      }
+    }
+  },
+  {
+    "model": "subscriptions.plan",
+    "fields": {
+      "name": "Enterprise",
+      "slug": "enterprise",
+      "price_monthly": "50000.00",
+      "price_yearly": "500000.00",
+      "max_members": 9999,
+      "max_tontine_types": 9999,
+      "max_cycles": 9999,
+      "trial_days": 30,
+      "display_order": 3,
+      "features": {
+        "loans_enabled": true,
+        "elections_enabled": true,
+        "export_pdf": true,
+        "export_excel": true,
+        "sms_notifications": true,
+        "api_access": true,
+        "custom_roles": true,
+        "advanced_reports": true,
+        "audit_log": true,
+        "multi_currency": true
+      }
+    }
+  }
+]

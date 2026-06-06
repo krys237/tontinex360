@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "TontineX360",
+    "slug": "tontinex360",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./src/assets/logo/logo-icon.png",
+    "scheme": "tontinex360",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./src/assets/logo/logo-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.tontinex360.app"
+    },
+    "android": {
+      "package": "com.tontinex360.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/logo/logo-icon.png",
+        "backgroundColor": "#E6F3E6"
+      },
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.CAMERA",
+        "android.permission.VIBRATE"
+      ]
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "TontineX360 accède à vos photos pour joindre une preuve de paiement.",
+          "cameraPermission": "TontineX360 utilise l'appareil photo pour prendre une preuve de paiement."
+        }
+      ]
+    ]
+  }
+}
