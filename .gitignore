@@ -1,0 +1,8 @@
+# APK / build artifacts
+*.apk
+*.aab
+tontine-debug-1.apk
+
+# Android build folder (React Native mobile)
+tontinex360_mobile/android/
+android/
