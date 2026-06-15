@@ -25,6 +25,8 @@ const STATUS: Record<CStatus, { label: string; bg: string; fg: string }> = {
   paid: { label: 'Payée', bg: colors.greenBg, fg: colors.primary },
   partial: { label: 'Partielle', bg: colors.goldSoft, fg: colors.goldAccent },
   pending: { label: 'En attente', bg: colors.surfaceAlt, fg: colors.textMuted },
+  submitted: { label: 'À valider', bg: colors.goldSoft, fg: colors.goldAccent },
+  rejected: { label: 'Rejetée', bg: colors.dangerSoft, fg: colors.danger },
   defaulted: { label: 'Impayée', bg: colors.dangerSoft, fg: colors.danger },
 };
 

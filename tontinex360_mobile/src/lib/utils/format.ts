@@ -55,6 +55,23 @@ export function formatDateFr(iso?: string | null, withTime = true): string {
   return `${date} à ${hh}h${mm}`;
 }
 
+/** ISO future date -> remaining time "2j 14h" / "14h 38m" / "38m" / "Terminé". */
+export function countdown(iso?: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  let ms = d.getTime() - Date.now();
+  if (ms <= 0) return 'Terminé';
+  const day = Math.floor(ms / 86400000);
+  ms -= day * 86400000;
+  const h = Math.floor(ms / 3600000);
+  ms -= h * 3600000;
+  const m = Math.floor(ms / 60000);
+  if (day > 0) return `${day}j ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
 /** ISO -> "à l'instant" / "il y a 2h" / "il y a 3j" / short date for older. */
 export function timeAgo(iso?: string | null): string {
   if (!iso) return '';

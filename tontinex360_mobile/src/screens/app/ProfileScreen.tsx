@@ -161,6 +161,27 @@ export default function ProfileScreen() {
           </View>
         </LinearGradient>
 
+        {/* Espace Bureau (réservé aux membres du bureau) */}
+        {isBureau ? (
+          <Pressable onPress={() => navigation.navigate('Bureau', { screen: 'BureauDashboard' })}>
+            <LinearGradient
+              colors={[colors.primary, colors.primaryDark]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.bureauCard}
+            >
+              <View style={styles.bureauIcon}>
+                <Ionicons name="briefcase" size={22} color={colors.white} />
+              </View>
+              <View style={styles.flex}>
+                <Text style={styles.bureauTitle}>Espace Bureau</Text>
+                <Text style={styles.bureauSub}>Gérer la tontine — {roleLabel}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.white} />
+            </LinearGradient>
+          </Pressable>
+        ) : null}
+
         {/* Compte */}
         <SectionLabel>Compte</SectionLabel>
         <Card style={styles.card}>
@@ -232,6 +253,11 @@ const styles = StyleSheet.create({
   miniValue: { fontSize: font.size.md, fontWeight: font.bold, color: colors.primary },
   miniValueDark: { fontSize: font.size.md, fontWeight: font.bold, color: colors.text },
   miniLabel: { fontSize: 10, color: colors.textMuted, marginTop: 2 },
+
+  bureauCard: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: radius.lg, padding: spacing.lg, ...cardShadow },
+  bureauIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+  bureauTitle: { fontSize: font.size.md, fontWeight: font.bold, color: colors.white },
+  bureauSub: { fontSize: font.size.xs, color: 'rgba(255,255,255,0.85)', marginTop: 1 },
 
   sectionLabel: { fontSize: font.size.sm, fontWeight: font.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4, marginLeft: 4, marginBottom: -6 },
   card: { borderRadius: radius.lg, paddingVertical: 4, ...cardShadow },

@@ -33,16 +33,35 @@ export interface Poll {
   title: string;
   question: string;
   kind: PollKind;
+  kind_display?: string;
   status: PollStatus;
   status_display: string;
   is_anonymous: boolean;
+  allow_change_vote: boolean;
+  max_choices?: number | null;
+  results_visible_before_close: boolean;
   starts_at?: string | null;
   ends_at?: string | null;
+  created_by_name?: string | null;
   options: PollOption[];
   has_voted: boolean;
   is_open_now: boolean;
   total_votes: number | null;
   created_at: string;
+}
+
+export interface PollResultOption {
+  id: string;
+  label: string;
+  votes_count: number | null;
+  percentage: number;
+}
+
+export interface PollResults {
+  poll_id: string;
+  total_votes: number | null;
+  visible: boolean;
+  options: PollResultOption[];
 }
 
 export const governanceApi = {
@@ -66,6 +85,9 @@ export const governanceApi = {
     api.get<Poll[] | Paginated<Poll>>('/governance/polls/', { params }).then((r) => unwrap(r.data)),
 
   getPoll: (id: string) => api.get<Poll>(`/governance/polls/${id}/`).then((r) => r.data),
+
+  pollResults: (id: string) =>
+    api.get<PollResults>(`/governance/polls/${id}/results/`).then((r) => r.data),
 
   votePoll: (id: string, optionIds: string[]) =>
     api.post<Poll>(`/governance/polls/${id}/vote/`, { option_ids: optionIds }).then((r) => r.data),

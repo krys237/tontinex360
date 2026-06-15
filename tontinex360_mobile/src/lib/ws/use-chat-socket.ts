@@ -66,6 +66,7 @@ export function useChatSocket(
 
       ws.onopen = () => {
         retryRef.current = 0;
+        console.log('[chat ws] open', conversationId);
         setStatus('live');
       };
 
@@ -104,13 +105,27 @@ export function useChatSocket(
       };
 
       ws.onerror = () => {
+        console.log('[chat ws] error', conversationId);
         // The close handler schedules the reconnect.
       };
 
-      ws.onclose = () => {
+      ws.onclose = (e) => {
         wsRef.current = null;
         setStatus('offline');
         if (closedRef.current) return;
+        console.log('[chat ws] close', e.code, e.reason || '(no reason)');
+        // App-level close codes (4001 unauthorized, 4003/4403 forbidden,
+        // 4004 not found, 4000 internal) are permanent — reconnecting won't help.
+        if (e.code >= 4000 && e.code < 5000) {
+          console.warn('[chat ws] permanent close — falling back to REST polling');
+          return;
+        }
+        // Transient drop: retry with backoff, but cap the attempts so we don't
+        // spin forever (REST polling keeps the conversation usable).
+        if (retryRef.current >= 6) {
+          console.warn('[chat ws] gave up reconnecting — REST polling active');
+          return;
+        }
         const delay = Math.min(15000, 1000 * 2 ** retryRef.current);
         retryRef.current += 1;
         timerRef.current = setTimeout(connect, delay);

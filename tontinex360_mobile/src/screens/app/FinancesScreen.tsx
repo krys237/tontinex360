@@ -125,7 +125,7 @@ export default function FinancesScreen() {
             <Text style={styles.empty}>Aucun prêt en cours.</Text>
           ) : (
             loans.map((l, i) => {
-              const st = LOAN_STATUS[l.status] ?? LOAN_STATUS.pending;
+              const st = LOAN_STATUS[l.status as keyof typeof LOAN_STATUS] ?? LOAN_STATUS.pending;
               const remaining = Number(l.remaining ?? (Number(l.total_due) - Number(l.total_repaid))) || 0;
               return (
                 <View key={l.id} style={[styles.loanRow, i > 0 && styles.loanDivider]}>

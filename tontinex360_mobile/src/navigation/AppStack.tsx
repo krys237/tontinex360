@@ -2,10 +2,12 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { AppStackParamList } from './types';
 import AppTabs from './AppTabs';
+import BureauStack from './BureauStack';
 import NotificationsScreen from '../screens/app/NotificationsScreen';
 import AnnouncementDetailScreen from '../screens/app/AnnouncementDetailScreen';
 import EventDetailScreen from '../screens/app/EventDetailScreen';
 import SessionDetailScreen from '../screens/app/SessionDetailScreen';
+import PollDetailScreen from '../screens/app/PollDetailScreen';
 import ChatListScreen from '../screens/app/ChatListScreen';
 import ConversationScreen from '../screens/app/ConversationScreen';
 import ProxiesScreen from '../screens/app/ProxiesScreen';
@@ -31,10 +33,12 @@ export default function AppStack() {
   return (
     <Stack.Navigator>
       <Stack.Screen name="Tabs" component={AppTabs} options={{ headerShown: false }} />
+      <Stack.Screen name="Bureau" component={BureauStack} options={{ headerShown: false }} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notifications', ...detailHeader }} />
       <Stack.Screen name="AnnouncementDetail" component={AnnouncementDetailScreen} options={{ title: 'Annonce', ...detailHeader }} />
       <Stack.Screen name="EventDetail" component={EventDetailScreen} options={{ title: 'Événement', ...detailHeader }} />
       <Stack.Screen name="SessionDetail" component={SessionDetailScreen} options={{ title: 'Séance', ...detailHeader }} />
+      <Stack.Screen name="PollDetail" component={PollDetailScreen} options={{ title: 'Détails du vote', ...detailHeader }} />
       <Stack.Screen name="Chat" component={ChatListScreen} options={{ title: 'Discussions', ...detailHeader }} />
       <Stack.Screen
         name="Conversation"

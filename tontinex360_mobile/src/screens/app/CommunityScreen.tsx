@@ -17,13 +17,14 @@ import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 
 import { Card, HeaderIconBtn, Chip, IconBubble } from '../../components/ui';
-import { governanceApi } from '../../lib/api/governance';
+import { governanceApi, type Poll } from '../../lib/api/governance';
 import { eventsApi, EVENT_TYPE_LABEL } from '../../lib/api/events';
 import { cyclesApi } from '../../lib/api/cycles';
 import { chatApi } from '../../lib/api/chat';
 import { membersApi } from '../../lib/api/members';
 import { notificationsApi } from '../../lib/api/notifications';
-import { timeAgo, formatDateFr } from '../../lib/utils/format';
+import { useAuthStore } from '../../lib/stores/auth-store';
+import { timeAgo, formatDateFr, countdown } from '../../lib/utils/format';
 import { colors } from '../../theme/colors';
 import { font } from '../../theme/typography';
 import { spacing, radius } from '../../theme/spacing';
@@ -37,6 +38,14 @@ const SUBTABS: { key: SubTabKey; label: string; icon: IoniconName }[] = [
   { key: 'avenir', label: 'À venir', icon: 'calendar' },
   { key: 'passees', label: 'Passées', icon: 'time-outline' },
   { key: 'calendrier', label: 'Calendrier', icon: 'calendar-outline' },
+];
+
+type VoteTabKey = 'encours' | 'termines' | 'mesvotes';
+
+const VOTE_TABS: { key: VoteTabKey; label: string; icon: IoniconName }[] = [
+  { key: 'encours', label: 'En cours', icon: 'time-outline' },
+  { key: 'termines', label: 'Terminés', icon: 'checkmark-done-outline' },
+  { key: 'mesvotes', label: 'Mes votes', icon: 'person-outline' },
 ];
 
 /** Réunion unifiée : séance de cycle OU événement, normalisée pour l'affichage. */
@@ -86,8 +95,24 @@ function hhmm(t?: string | null) {
 
 export default function CommunityScreen() {
   const navigation = useNavigation<any>();
+  const myMembershipId = useAuthStore((s) => s.currentMembership?.id);
   const [tab, setTab] = useState<TabKey>('reunions');
   const [subTab, setSubTab] = useState<SubTabKey>('avenir');
+  const [voteTab, setVoteTab] = useState<VoteTabKey>('encours');
+  const [startingChat, setStartingChat] = useState(false);
+
+  const openPrivate = async (m: { id: string; user_name: string }) => {
+    if (startingChat) return;
+    setStartingChat(true);
+    try {
+      const conv = await chatApi.createPrivate(m.id);
+      navigation.navigate('Conversation', { id: conv.id, title: m.user_name || 'Conversation' });
+    } catch {
+      Alert.alert('Discussion', "Impossible d'ouvrir la conversation pour le moment.");
+    } finally {
+      setStartingChat(false);
+    }
+  };
 
   const unreadQ = useQuery({
     queryKey: ['notifications', 'unread'],
@@ -255,6 +280,56 @@ export default function CommunityScreen() {
           </View>
         </View>
         <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+      </Pressable>
+    );
+  };
+
+  // --- Votes (sondages) ---
+  const polls = pollsQ.data ?? [];
+  const openPolls = polls.filter((p) => p.status === 'open');
+  const heroPoll = openPolls[0];
+  const voteList =
+    voteTab === 'encours'
+      ? openPolls
+      : voteTab === 'termines'
+        ? polls.filter((p) => p.status === 'closed' || p.status === 'cancelled')
+        : polls.filter((p) => p.has_voted);
+  const voteEmptyLabel =
+    voteTab === 'encours' ? 'Aucun vote en cours.' : voteTab === 'termines' ? 'Aucun vote terminé.' : "Vous n'avez pas encore voté.";
+
+  const renderPoll = (p: Poll) => {
+    const total = p.total_votes;
+    const top = total && total > 0 ? Math.max(0, ...p.options.map((o) => o.votes_count)) : 0;
+    const topPct = total && total > 0 ? Math.round((top / total) * 100) : 0;
+    return (
+      <Pressable key={p.id} onPress={() => navigation.navigate('PollDetail', { id: p.id })}>
+        <Card style={styles.card}>
+          <View style={styles.annTop}>
+            <Text style={styles.voteCardTitle} numberOfLines={2}>
+              {p.title}
+            </Text>
+            {p.has_voted ? <Chip label="Voté" tint="green" /> : null}
+          </View>
+          {p.created_by_name ? <Text style={styles.voteProposer}>Proposé par {p.created_by_name}</Text> : null}
+          {total != null ? (
+            <View style={styles.voteBarRow}>
+              <View style={styles.voteBarTrack}>
+                <View style={[styles.voteBarFill, { width: `${topPct}%` }]} />
+              </View>
+              <Text style={styles.votePct}>{topPct}%</Text>
+            </View>
+          ) : (
+            <Text style={styles.voteHiddenSmall}>Résultats après clôture</Text>
+          )}
+          <View style={styles.voteCardFooter}>
+            <Text style={styles.voteEnds} numberOfLines={1}>
+              {p.status === 'open' && p.ends_at ? `Se termine dans ${countdown(p.ends_at)}` : p.status_display || p.status}
+            </Text>
+            <View style={styles.voteCardBtn}>
+              <Text style={styles.voteCardBtnText}>{p.status === 'open' ? 'Voir & voter' : 'Voir'}</Text>
+            </View>
+          </View>
+        </Card>
       </Pressable>
     );
   };
@@ -612,51 +687,57 @@ export default function CommunityScreen() {
         {tab === 'votes' &&
           (pollsQ.isLoading ? (
             <ActivityIndicator color={colors.primary} />
-          ) : (pollsQ.data ?? []).length === 0 ? (
-            <Card style={styles.card}>
-              <Text style={styles.empty}>Aucun sondage pour le moment.</Text>
-            </Card>
           ) : (
-            (pollsQ.data ?? []).map(p => (
-              <Pressable
-                key={p.id}
-                onPress={() =>
-                  Alert.alert(p.title, 'Le détail du vote arrive bientôt.')
-                }
-              >
-                <Card style={styles.card}>
-                  <View style={styles.annTop}>
-                    <Text style={styles.annTitle} numberOfLines={1}>
-                      {p.title}
+            <>
+              {/* Hero — vote en cours */}
+              {heroPoll ? (
+                <LinearGradient colors={[colors.greenBg, colors.greenBgDeep]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
+                  <Text style={styles.heroKicker}>VOTES EN COURS</Text>
+                  <Text style={styles.heroTitle}>{heroPoll.title}</Text>
+                  {heroPoll.created_by_name ? (
+                    <Text style={styles.voteProposer}>Proposé par {heroPoll.created_by_name}</Text>
+                  ) : null}
+                  {heroPoll.question ? (
+                    <Text style={styles.heroBody} numberOfLines={2}>
+                      {heroPoll.question}
                     </Text>
-                    <Chip
-                      label={
-                        p.is_open_now ? 'Ouvert' : p.status_display || p.status
-                      }
-                      tint={p.is_open_now ? 'green' : 'grey'}
-                    />
+                  ) : null}
+                  <View style={styles.voteCardFooter}>
+                    <View style={styles.flex}>
+                      <Text style={styles.voteHeroStat}>{heroPoll.total_votes ?? '—'} votes</Text>
+                      {heroPoll.ends_at ? (
+                        <Text style={styles.voteEnds}>Se termine dans {countdown(heroPoll.ends_at)}</Text>
+                      ) : null}
+                    </View>
+                    <Pressable style={styles.voteHeroBtn} onPress={() => navigation.navigate('PollDetail', { id: heroPoll.id })}>
+                      <Text style={styles.voteHeroBtnText}>Voter maintenant</Text>
+                    </Pressable>
                   </View>
-                  <Text style={styles.annBody} numberOfLines={2}>
-                    {p.question}
-                  </Text>
-                  <View style={styles.pollMeta}>
-                    {p.is_anonymous ? (
-                      <Text style={styles.metaItem}>
-                        <Ionicons
-                          name="lock-closed"
-                          size={11}
-                          color={colors.textLight}
-                        />{' '}
-                        Anonyme
-                      </Text>
-                    ) : null}
-                    {p.has_voted ? (
-                      <Text style={styles.voted}>✓ Vous avez voté</Text>
-                    ) : null}
-                  </View>
+                </LinearGradient>
+              ) : null}
+
+              {/* Sous-onglets */}
+              <View style={styles.subTabs}>
+                {VOTE_TABS.map((s) => {
+                  const active = voteTab === s.key;
+                  return (
+                    <Pressable key={s.key} onPress={() => setVoteTab(s.key)} style={[styles.subTab, active && styles.subTabActive]}>
+                      <Ionicons name={s.icon} size={14} color={active ? colors.white : colors.textMuted} />
+                      <Text style={[styles.subTabText, active && styles.subTabTextActive]}>{s.label}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              {/* Liste */}
+              {voteList.length === 0 ? (
+                <Card style={styles.card}>
+                  <Text style={styles.empty}>{voteEmptyLabel}</Text>
                 </Card>
-              </Pressable>
-            ))
+              ) : (
+                voteList.map(renderPoll)
+              )}
+            </>
           ))}
 
         {/* MEMBRES */}
@@ -669,28 +750,38 @@ export default function CommunityScreen() {
             </Card>
           ) : (
             <Card style={styles.card}>
-              {(membersQ.data ?? []).map((m, i) => (
-                <View
-                  key={m.id}
-                  style={[styles.memberRow, i > 0 && styles.histDivider]}
-                >
-                  <View style={styles.memberAvatar}>
-                    <Text style={styles.memberInitials}>
-                      {(m.user_name || '?').slice(0, 2).toUpperCase()}
-                    </Text>
-                  </View>
-                  <View style={styles.flex}>
-                    <Text style={styles.memberName} numberOfLines={1}>
-                      {m.user_name}
-                    </Text>
-                    <Text style={styles.memberNum}>{m.member_number}</Text>
-                  </View>
-                  <Chip
-                    label={m.is_active ? 'Actif' : 'Inactif'}
-                    tint={m.is_active ? 'green' : 'grey'}
-                  />
-                </View>
-              ))}
+              {(membersQ.data ?? []).map((m, i) => {
+                const isMe = m.id === myMembershipId;
+                return (
+                  <Pressable
+                    key={m.id}
+                    style={[styles.memberRow, i > 0 && styles.histDivider]}
+                    disabled={isMe || startingChat}
+                    onPress={() => openPrivate(m)}
+                  >
+                    <View style={styles.memberAvatar}>
+                      <Text style={styles.memberInitials}>
+                        {(m.user_name || '?').slice(0, 2).toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={styles.flex}>
+                      <Text style={styles.memberName} numberOfLines={1}>
+                        {m.user_name}
+                        {isMe ? ' (vous)' : ''}
+                      </Text>
+                      <Text style={styles.memberNum}>{m.member_number}</Text>
+                    </View>
+                    {isMe ? (
+                      <Chip
+                        label={m.is_active ? 'Actif' : 'Inactif'}
+                        tint={m.is_active ? 'green' : 'grey'}
+                      />
+                    ) : (
+                      <Ionicons name="chatbubble-ellipses-outline" size={20} color={colors.primary} />
+                    )}
+                  </Pressable>
+                );
+              })}
             </Card>
           ))}
       </ScrollView>
@@ -932,6 +1023,22 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 2,
   },
+
+  // Votes
+  voteProposer: { fontSize: font.size.sm, color: colors.textMuted, marginTop: 2 },
+  voteHeroStat: { fontSize: font.size.md, fontWeight: font.bold, color: colors.text },
+  voteEnds: { fontSize: font.size.xs, color: colors.textMuted },
+  voteHeroBtn: { paddingHorizontal: 18, paddingVertical: 11, borderRadius: 999, backgroundColor: colors.primary },
+  voteHeroBtnText: { color: colors.white, fontSize: font.size.sm, fontWeight: font.semibold },
+  voteCardTitle: { flex: 1, fontSize: font.size.md, fontWeight: font.bold, color: colors.text },
+  voteBarRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 },
+  voteBarTrack: { flex: 1, height: 8, borderRadius: 999, backgroundColor: colors.surfaceMuted, overflow: 'hidden' },
+  voteBarFill: { height: 8, borderRadius: 999, backgroundColor: colors.green[500] },
+  votePct: { fontSize: font.size.sm, fontWeight: font.bold, color: colors.primary, minWidth: 38, textAlign: 'right' },
+  voteHiddenSmall: { fontSize: font.size.xs, color: colors.textMuted, fontStyle: 'italic', marginTop: 8 },
+  voteCardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 12 },
+  voteCardBtn: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999, backgroundColor: colors.primary },
+  voteCardBtnText: { color: colors.white, fontSize: font.size.sm, fontWeight: font.semibold },
 
   card: { borderRadius: radius.lg, ...cardShadow },
   empty: { fontSize: font.size.sm, color: colors.textMuted },
