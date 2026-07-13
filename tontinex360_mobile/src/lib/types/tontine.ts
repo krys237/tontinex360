@@ -26,6 +26,11 @@ export interface TontineType {
   default_acquisition_method?: AcquisitionMethod;
   is_active: boolean;
   display_order: number;
+  default_account?: string | null;
+  default_account_name?: string | null;
+  contribution_kind_display?: string;
+  payout_pattern_display?: string;
+  default_acquisition_method_display?: string;
 }
 
 export interface MemberSubscription {

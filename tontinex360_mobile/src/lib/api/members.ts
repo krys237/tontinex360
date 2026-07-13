@@ -10,10 +10,24 @@ import type {
   MembershipRequest,
   Resignation,
 } from '../types/member';
+import type { MyJoinRequest } from '../types/auth';
 
 type MaybePaginated<T> = T[] | Paginated<T>;
 
 export const membersApi = {
+  // ---------- Onboarding : demandes d'adhésion (self-service) ----------
+  /** Envoie une demande d'adhésion à une association (par slug). */
+  sendJoinRequest: (data: { association_slug: string; motivation?: string; contact_phone?: string; contact_email?: string }) =>
+    api.post('/members/join-request/', data).then((r) => r.data),
+
+  /** Demandes d'adhésion envoyées par l'utilisateur courant (toutes assos). */
+  myJoinRequests: () =>
+    api.get<MyJoinRequest[]>('/members/my-join-requests/').then((r) => r.data),
+
+  /** Annule une demande encore en attente. */
+  cancelJoinRequest: (id: string) =>
+    api.post(`/members/my-join-requests/${id}/cancel/`).then((r) => r.data),
+
   // ---------- Memberships ----------
   list: (params?: { search?: string; status?: string }) =>
     api

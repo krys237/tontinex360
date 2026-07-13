@@ -89,7 +89,7 @@ export default function FinancesScreen() {
 
           <View style={styles.subCard}>
             <View style={styles.subItem}>
-              <IconBubble icon="arrow-down-circle" tint="lime" size={32} />
+              <IconBubble icon="arrow-down-circle" tint="lime" size={32} outline />
               <View style={styles.flex}>
                 <Text style={styles.subLabel}>Total crédité</Text>
                 <Text style={styles.subValue}>{formatNumber(credits)} FCFA</Text>
@@ -98,7 +98,7 @@ export default function FinancesScreen() {
             </View>
             <View style={styles.subDivider} />
             <View style={styles.subItem}>
-              <IconBubble icon="arrow-up-circle" tint="danger" size={32} />
+              <IconBubble icon="arrow-up-circle" tint="danger" size={32} outline />
               <View style={styles.flex}>
                 <Text style={styles.subLabel}>Total débité</Text>
                 <Text style={styles.subValue}>{formatNumber(debits)} FCFA</Text>
@@ -258,11 +258,13 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: colors.greenBg,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.success,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  txDotDebit: { backgroundColor: colors.dangerSoft },
+  txDotDebit: { borderColor: colors.danger },
   txLabel: { fontSize: font.size.md, fontWeight: font.semibold, color: colors.text },
   txSub: { fontSize: font.size.xs, color: colors.textLight, marginTop: 1 },
   txAmount: { fontSize: font.size.md, fontWeight: font.bold },

@@ -231,7 +231,7 @@ function LoanHeroCard({
       </View>
 
       <Pressable onPress={onRequest} style={({ pressed }) => [styles.heroBtn, pressed && styles.pressed]}>
-        <Ionicons name="server-outline" size={18} color={colors.white} />
+        <Ionicons name="cash-outline" size={18} color={colors.white} />
         <Text style={styles.heroBtnText}>Faire une demande</Text>
       </Pressable>
     </LinearGradient>
@@ -262,9 +262,9 @@ function FolderCard({
       style={[
         styles.iconSquare,
         variant === 'inline' && styles.iconSquareInline,
-        { backgroundColor: 'rgba(255,255,255,0.22)' },
+        { backgroundColor: colors.white },
       ]}>
-      <Ionicons name={icon} size={20} color={fg} />
+      <Ionicons name={icon} size={20} color={colors.primary} />
     </View>
   );
 
@@ -335,7 +335,8 @@ const styles = StyleSheet.create({
   quickItem: { flex: 1, alignItems: 'center', gap: 4, paddingHorizontal: 2 },
   quickDivider: { width: 1, alignSelf: 'stretch', backgroundColor: colors.surfaceAlt, marginHorizontal: 4 },
   quickIcon: {
-    width: 32, height: 32, borderRadius: 16, backgroundColor: colors.greenBg,
+    width: 32, height: 32, borderRadius: 16, backgroundColor: colors.white,
+    borderWidth: 1, borderColor: colors.primary,
     alignItems: 'center', justifyContent: 'center', marginBottom: 2,
   },
   quickLabel: { fontSize: 10, color: colors.textMuted, textAlign: 'center' },
@@ -386,7 +387,7 @@ const styles = StyleSheet.create({
   iconSquare: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,

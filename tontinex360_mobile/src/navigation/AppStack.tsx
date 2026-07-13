@@ -9,6 +9,8 @@ import EventDetailScreen from '../screens/app/EventDetailScreen';
 import SessionDetailScreen from '../screens/app/SessionDetailScreen';
 import PollDetailScreen from '../screens/app/PollDetailScreen';
 import ChatListScreen from '../screens/app/ChatListScreen';
+import ChatNewPrivateScreen from '../screens/app/ChatNewPrivateScreen';
+import ChatNewGroupScreen from '../screens/app/ChatNewGroupScreen';
 import ConversationScreen from '../screens/app/ConversationScreen';
 import ProxiesScreen from '../screens/app/ProxiesScreen';
 import TontinesScreen from '../screens/app/TontinesScreen';
@@ -40,6 +42,8 @@ export default function AppStack() {
       <Stack.Screen name="SessionDetail" component={SessionDetailScreen} options={{ title: 'Séance', ...detailHeader }} />
       <Stack.Screen name="PollDetail" component={PollDetailScreen} options={{ title: 'Détails du vote', ...detailHeader }} />
       <Stack.Screen name="Chat" component={ChatListScreen} options={{ title: 'Discussions', ...detailHeader }} />
+      <Stack.Screen name="ChatNewPrivate" component={ChatNewPrivateScreen} options={{ title: 'Discuter avec un membre', ...detailHeader }} />
+      <Stack.Screen name="ChatNewGroup" component={ChatNewGroupScreen} options={{ title: 'Créer un groupe', ...detailHeader }} />
       <Stack.Screen
         name="Conversation"
         component={ConversationScreen}

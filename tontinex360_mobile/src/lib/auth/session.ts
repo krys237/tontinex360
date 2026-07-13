@@ -43,8 +43,13 @@ async function loadAssociationsAndMembership(): Promise<void> {
   const { associations, active_slug } = await authApi.myAssociations();
   store.setAssociations(associations);
 
-  const active =
-    associations.find((a) => a.slug === active_slug) ?? associations[0] ?? null;
+  // Sélection de l'asso active :
+  //  - si le backend a mémorisé une asso active (active_slug) → on la reprend
+  //  - sinon, s'il n'y en a qu'une seule → on entre directement
+  //  - sinon (0 ou plusieurs sans choix) → on laisse null pour afficher
+  //    l'écran d'onboarding (Bienvenue / Mes associations).
+  let active = active_slug ? associations.find((a) => a.slug === active_slug) ?? null : null;
+  if (!active && associations.length === 1) active = associations[0];
   store.setActiveAssociation(active); // also syncs the X-Tenant slug
 
   if (active) await resolveCurrentMembership();

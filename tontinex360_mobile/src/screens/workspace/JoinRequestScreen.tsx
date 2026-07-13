@@ -1,155 +1,133 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
-import { ArrowLeft, CheckCircle2 } from 'lucide-react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert, TextInput } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+
 import type { WorkspaceStackParamList } from '../../navigation/types';
-import {
-  GradientBackground,
-  Card,
-  TextField,
-  PrimaryButton,
-  InfoCard,
-} from '../../components/ui';
+import type { AssociationSearchResult } from '../../lib/types/auth';
+import { authApi } from '../../lib/api/auth';
+import { membersApi } from '../../lib/api/members';
 import { colors } from '../../theme/colors';
 import { font } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
+import { radius, spacing } from '../../theme/spacing';
+import { cardShadow } from '../../theme/shadow';
 
 type Props = NativeStackScreenProps<WorkspaceStackParamList, 'JoinRequest'>;
 
-export default function JoinRequestScreen({ navigation }: Props) {
-  const [slug, setSlug] = useState('');
-  const [motivation, setMotivation] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+function initials(name: string): string {
+  const p = name.trim().split(/\s+/);
+  return ((p[0]?.[0] ?? '') + (p[1]?.[0] ?? '')).toUpperCase() || '?';
+}
 
-  const onSubmit = async () => {
-    setError(null);
-    if (!slug.trim()) {
-      setError("Indiquez l'identifiant de l'association.");
-      return;
-    }
-    setLoading(true);
-    try {
-      // TODO(Phase 2): POST /members/membership-requests/ in the target association's
-      // tenant context (X-Tenant = slug) with { motivation, contact_phone, contact_email }.
-      // Exact targeting flow to confirm against /swagger/.
-      await new Promise<void>((r) => setTimeout(() => r(), 600));
-      setSent(true);
-    } catch {
-      setError("L'envoi de la demande a échoué.");
-    } finally {
-      setLoading(false);
-    }
-  };
+export default function JoinRequestScreen({ navigation }: Props) {
+  const [query, setQuery] = useState('');
+  const trimmed = query.trim();
+
+  const searchQ = useQuery({
+    queryKey: ['assoc-search', trimmed],
+    queryFn: () => authApi.searchAssociations(trimmed),
+    enabled: trimmed.length >= 2,
+  });
+
+  const joinMut = useMutation({
+    mutationFn: (slug: string) => membersApi.sendJoinRequest({ association_slug: slug }),
+    onSuccess: () => {
+      Alert.alert('Demande envoyée', "Votre demande d'adhésion a été transmise au bureau.", [
+        { text: 'Voir mes demandes', onPress: () => navigation.navigate('MyJoinRequests') },
+        { text: 'OK' },
+      ]);
+    },
+    onError: (e: any) => Alert.alert('Erreur', e?.response?.data?.error ?? e?.response?.data?.detail ?? "Impossible d'envoyer la demande."),
+  });
+
+  const confirmJoin = (a: AssociationSearchResult) =>
+    Alert.alert('Rejoindre', `Envoyer une demande d'adhésion à « ${a.name} » ?`, [
+      { text: 'Annuler', style: 'cancel' },
+      { text: 'Envoyer', onPress: () => joinMut.mutate(a.slug) },
+    ]);
+
+  const results = searchQ.data ?? [];
 
   return (
-    <GradientBackground>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <Pressable style={styles.back} onPress={() => navigation.goBack()} hitSlop={8}>
-          <ArrowLeft size={20} color={colors.text} />
+        <Pressable onPress={() => navigation.goBack()} hitSlop={8} style={styles.back}>
+          <Ionicons name="arrow-back" size={20} color={colors.text} />
           <Text style={styles.backText}>Retour</Text>
         </Pressable>
       </View>
 
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <Card>
-            {sent ? (
-              <View style={styles.doneBox}>
-                <CheckCircle2 size={48} color={colors.success} />
-                <Text style={styles.doneTitle}>Demande envoyée</Text>
-                <Text style={styles.doneText}>
-                  Votre demande d'adhésion a été transmise au bureau de l'association. Vous
-                  serez notifié dès qu'elle sera examinée.
-                </Text>
-                <PrimaryButton
-                  title="Retour"
-                  onPress={() => navigation.goBack()}
-                  style={styles.cta}
-                />
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <Text style={styles.title}>Rejoindre une association</Text>
+
+        <View style={styles.searchBox}>
+          <Ionicons name="search" size={18} color={colors.textLight} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Nom de l'asso ou ville…"
+            placeholderTextColor={colors.textLight}
+            value={query}
+            onChangeText={setQuery}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {query.length > 0 ? (
+            <Pressable onPress={() => setQuery('')} hitSlop={8}><Ionicons name="close-circle" size={18} color={colors.textLight} /></Pressable>
+          ) : null}
+        </View>
+
+        {trimmed.length < 2 ? (
+          <Text style={styles.hint}>Saisissez au moins 2 caractères pour rechercher.</Text>
+        ) : searchQ.isLoading ? (
+          <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.lg }} />
+        ) : results.length === 0 ? (
+          <View style={styles.empty}>
+            <Text style={styles.emptyText}>Aucune association trouvée. Essayez un autre terme.</Text>
+          </View>
+        ) : (
+          results.map((a) => (
+            <Pressable key={a.id} style={styles.card} onPress={() => confirmJoin(a)} disabled={joinMut.isPending}>
+              <View style={styles.logo}><Text style={styles.logoText}>{initials(a.name)}</Text></View>
+              <View style={styles.flex}>
+                <Text style={styles.name}>{a.name}</Text>
+                {a.city ? <Text style={styles.meta}>{a.city}</Text> : null}
+                {a.description ? <Text style={styles.desc} numberOfLines={2}>{a.description}</Text> : null}
               </View>
-            ) : (
-              <>
-                <Text style={styles.title}>Rejoindre une association</Text>
-                <Text style={styles.subtitle}>
-                  Envoyez une demande d'adhésion au bureau d'une association existante.
-                </Text>
-
-                <View style={styles.form}>
-                  <TextField
-                    label="Identifiant de l'association (slug)"
-                    placeholder="tontine-des-amis"
-                    autoCapitalize="none"
-                    value={slug}
-                    onChangeText={setSlug}
-                  />
-                  <TextField
-                    label="Motivation (optionnel)"
-                    placeholder="Présentez-vous en quelques mots…"
-                    multiline
-                    value={motivation}
-                    onChangeText={setMotivation}
-                  />
-                  {error ? <Text style={styles.error}>{error}</Text> : null}
-                  <PrimaryButton
-                    title="Envoyer la demande"
-                    loading={loading}
-                    onPress={onSubmit}
-                    style={styles.cta}
-                  />
-                </View>
-
-                <View style={styles.info}>
-                  <InfoCard variant="green">
-                    Vous pouvez aussi rejoindre via un lien d'invitation reçu par WhatsApp,
-                    SMS ou e-mail.
-                  </InfoCard>
-                </View>
-              </>
-            )}
-          </Card>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </GradientBackground>
+              {joinMut.isPending && joinMut.variables === a.slug ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : (
+                <Ionicons name="add-circle-outline" size={22} color={colors.primary} />
+              )}
+            </Pressable>
+          ))
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
   header: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  back: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start' },
-  backText: { fontSize: font.size.md, color: colors.text, fontWeight: font.medium },
-  scroll: { padding: spacing.lg, flexGrow: 1, justifyContent: 'center' },
-  title: { fontSize: font.size.xl, fontWeight: font.bold, color: colors.heading, textAlign: 'center' },
-  subtitle: {
-    marginTop: spacing.md,
-    fontSize: font.size.md,
-    color: colors.textMuted,
-    textAlign: 'center',
-    lineHeight: font.size.md * 1.5,
-  },
-  form: { marginTop: spacing.xl },
-  error: { color: colors.danger, marginBottom: 10 },
-  cta: { marginTop: spacing.sm },
-  info: { marginTop: spacing.lg },
-  doneBox: { alignItems: 'center', paddingVertical: spacing.lg },
-  doneTitle: { marginTop: spacing.md, fontSize: font.size.lg, fontWeight: font.bold, color: colors.heading },
-  doneText: {
-    marginTop: spacing.sm,
-    fontSize: font.size.md,
-    color: colors.textMuted,
-    textAlign: 'center',
-    lineHeight: font.size.md * 1.5,
-  },
+  back: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  backText: { fontSize: font.size.sm, color: colors.text, fontWeight: font.semibold },
+  scroll: { padding: spacing.lg, gap: spacing.sm, paddingBottom: spacing.x5 },
+  title: { fontSize: font.size.xl, fontWeight: font.bold, color: colors.heading },
+
+  searchBox: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.white, borderRadius: radius.pill, paddingHorizontal: spacing.md, height: 48, ...cardShadow },
+  searchInput: { flex: 1, fontSize: font.size.md, color: colors.text, padding: 0 },
+  hint: { fontSize: font.size.sm, color: colors.textLight, marginTop: spacing.sm, textAlign: 'center' },
+
+  empty: { backgroundColor: colors.white, borderRadius: radius.lg, padding: spacing.xl, alignItems: 'center', ...cardShadow },
+  emptyText: { fontSize: font.size.sm, color: colors.textMuted, textAlign: 'center' },
+
+  card: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.white, borderRadius: radius.lg, padding: spacing.md, ...cardShadow },
+  logo: { width: 44, height: 44, borderRadius: radius.md, backgroundColor: colors.green[100], alignItems: 'center', justifyContent: 'center' },
+  logoText: { fontSize: font.size.md, fontWeight: font.bold, color: colors.primary },
+  name: { fontSize: font.size.md, fontWeight: font.bold, color: colors.text },
+  meta: { fontSize: font.size.xs, color: colors.textMuted, marginTop: 1 },
+  desc: { fontSize: font.size.xs, color: colors.textLight, marginTop: 2 },
 });

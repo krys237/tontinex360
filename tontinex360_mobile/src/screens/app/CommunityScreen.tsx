@@ -419,7 +419,7 @@ export default function CommunityScreen() {
             {/* Hero — prochaine réunion */}
             {nextR ? (
               <LinearGradient
-                colors={[colors.greenBg, colors.greenBgDeep]}
+                colors={[colors.green[800], colors.green[500]]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.hero}
@@ -436,7 +436,7 @@ export default function CommunityScreen() {
                           <Ionicons
                             name="calendar"
                             size={14}
-                            color={colors.primary}
+                            color={colors.white}
                           />
                           <Text style={styles.heroInfoText}>
                             {formatDateFr(nextR.date, false)}
@@ -448,7 +448,7 @@ export default function CommunityScreen() {
                           <Ionicons
                             name="time"
                             size={14}
-                            color={colors.primary}
+                            color={colors.white}
                           />
                           <Text style={styles.heroInfoText}>
                             {hhmm(nextR.start_time)}
@@ -461,7 +461,7 @@ export default function CommunityScreen() {
                           <Ionicons
                             name="location"
                             size={14}
-                            color={colors.primary}
+                            color={colors.white}
                           />
                           <Text style={styles.heroInfoText} numberOfLines={1}>
                             {nextR.location}
@@ -484,7 +484,7 @@ export default function CommunityScreen() {
                   <Ionicons
                     name="chevron-forward"
                     size={15}
-                    color={colors.white}
+                    color={colors.primary}
                   />
                 </Pressable>
               </LinearGradient>
@@ -592,7 +592,7 @@ export default function CommunityScreen() {
                   }
                 >
                   <LinearGradient
-                    colors={[colors.greenBg, colors.greenBgDeep]}
+                    colors={[colors.green[800], colors.green[500]]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.hero}
@@ -618,7 +618,7 @@ export default function CommunityScreen() {
                       <Ionicons
                         name="chevron-forward"
                         size={15}
-                        color={colors.white}
+                        color={colors.primary}
                       />
                     </View>
                   </LinearGradient>
@@ -691,7 +691,7 @@ export default function CommunityScreen() {
             <>
               {/* Hero — vote en cours */}
               {heroPoll ? (
-                <LinearGradient colors={[colors.greenBg, colors.greenBgDeep]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
+                <LinearGradient colors={[colors.green[800], colors.green[500]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
                   <Text style={styles.heroKicker}>VOTES EN COURS</Text>
                   <Text style={styles.heroTitle}>{heroPoll.title}</Text>
                   {heroPoll.created_by_name ? (
@@ -833,17 +833,17 @@ const styles = StyleSheet.create({
 
   hero: { borderRadius: radius.hero, padding: 18, ...cardShadow },
   heroTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
-  heroKicker: { fontSize: font.size.sm, color: colors.textMuted },
+  heroKicker: { fontSize: font.size.sm, color: 'rgba(255,255,255,0.85)' },
   heroTitle: {
     fontSize: font.size.lg,
     fontWeight: font.bold,
-    color: colors.primary,
+    color: colors.white,
     marginTop: 4,
     lineHeight: font.size.lg * 1.25,
   },
   heroBody: {
     fontSize: font.size.sm,
-    color: colors.green[900],
+    color: 'rgba(255,255,255,0.92)',
     marginTop: 8,
     lineHeight: font.size.sm * 1.4,
   },
@@ -858,10 +858,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 999,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.white,
   },
   heroBtnText: {
-    color: colors.white,
+    color: colors.primary,
     fontSize: font.size.sm,
     fontWeight: font.semibold,
   },
@@ -952,7 +952,7 @@ const styles = StyleSheet.create({
   heroInfoText: {
     flex: 1,
     fontSize: font.size.sm,
-    color: colors.green[900],
+    color: 'rgba(255,255,255,0.92)',
     fontWeight: font.medium,
   },
   heroBtns: { flexDirection: 'row', gap: 10, marginTop: 14 },
@@ -986,10 +986,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 999,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.white,
   },
   heroDetailsText: {
-    color: colors.white,
+    color: colors.primary,
     fontSize: font.size.sm,
     fontWeight: font.semibold,
   },
@@ -1025,11 +1025,11 @@ const styles = StyleSheet.create({
   },
 
   // Votes
-  voteProposer: { fontSize: font.size.sm, color: colors.textMuted, marginTop: 2 },
-  voteHeroStat: { fontSize: font.size.md, fontWeight: font.bold, color: colors.text },
-  voteEnds: { fontSize: font.size.xs, color: colors.textMuted },
-  voteHeroBtn: { paddingHorizontal: 18, paddingVertical: 11, borderRadius: 999, backgroundColor: colors.primary },
-  voteHeroBtnText: { color: colors.white, fontSize: font.size.sm, fontWeight: font.semibold },
+  voteProposer: { fontSize: font.size.sm, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
+  voteHeroStat: { fontSize: font.size.md, fontWeight: font.bold, color: colors.white },
+  voteEnds: { fontSize: font.size.xs, color: 'rgba(255,255,255,0.85)' },
+  voteHeroBtn: { paddingHorizontal: 18, paddingVertical: 11, borderRadius: 999, backgroundColor: colors.white },
+  voteHeroBtnText: { color: colors.primary, fontSize: font.size.sm, fontWeight: font.semibold },
   voteCardTitle: { flex: 1, fontSize: font.size.md, fontWeight: font.bold, color: colors.text },
   voteBarRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 },
   voteBarTrack: { flex: 1, height: 8, borderRadius: 999, backgroundColor: colors.surfaceMuted, overflow: 'hidden' },
@@ -1090,14 +1090,16 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: colors.greenBg,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   memberInitials: {
     fontSize: font.size.sm,
     fontWeight: font.bold,
-    color: colors.green[500],
+    color: colors.primary,
   },
   memberName: {
     fontSize: font.size.md,

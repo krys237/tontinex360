@@ -39,6 +39,7 @@ export default function TextField({
   ...rest
 }: Props) {
   const [hidden, setHidden] = useState(!!secureTextEntry);
+  const [isFocused, setIsFocused] = useState(false);
   const isPassword = !!secureTextEntry;
 
   return (
@@ -54,6 +55,7 @@ export default function TextField({
         style={[
           styles.field,
           variant === 'filled' ? styles.filled : styles.pill,
+          isFocused && styles.focused,
           multiline && styles.multiline,
           !!error && styles.fieldError,
         ]}>
@@ -62,6 +64,14 @@ export default function TextField({
           placeholderTextColor={colors.placeholder}
           secureTextEntry={hidden}
           multiline={multiline}
+          onFocus={(e) => {
+            setIsFocused(true);
+            rest.onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setIsFocused(false);
+            rest.onBlur?.(e);
+          }}
           {...rest}
         />
         {isPassword ? (
@@ -107,11 +117,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.inputBg,
     borderWidth: 1,
     borderColor: colors.inputBorder,
-    borderRadius: radius.pill,
+    borderRadius: radius.md,
   },
   filled: {
     backgroundColor: colors.inputBgAlt,
     borderRadius: radius.lg,
+  },
+  focused: {
+    borderColor: colors.primary,
   },
   multiline: { alignItems: 'flex-start', paddingVertical: 12, minHeight: 96 },
   fieldError: { borderColor: colors.danger, borderWidth: 1 },
@@ -121,7 +134,7 @@ const styles = StyleSheet.create({
     color: colors.textStrong,
     paddingVertical: 12,
   },
-  inputMultiline: { textAlignVertical: 'top' },
+  inputMultiline: { textAlignVertical: 'top', paddingVertical: 0 },
   helper: { marginTop: 6, fontSize: font.size.sm, color: colors.textMuted },
   error: { marginTop: 6, fontSize: font.size.sm, color: colors.danger },
 });

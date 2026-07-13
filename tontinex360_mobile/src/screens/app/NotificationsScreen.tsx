@@ -44,7 +44,7 @@ export default function NotificationsScreen() {
         }
         renderItem={({ item }) => (
           <View style={[styles.row, !item.is_read && styles.rowUnread]}>
-            <IconBubble icon="notifications" tint={item.is_read ? 'primary' : 'lime'} size={36} />
+            <IconBubble icon={item.is_read ? 'notifications-outline' : 'notifications'} tint="white" size={36} />
             <View style={styles.flex}>
               <Text style={styles.title} numberOfLines={1}>
                 {item.title}

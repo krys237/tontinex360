@@ -39,7 +39,7 @@ export default function ModuleTile({
       ]}
     >
       <View>
-        <IconBubble icon={icon} tint={tint} size={48} />
+        <IconBubble icon={icon} tint={tint} size={48} outline={true} />
         {badge ? (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{badge > 99 ? '99+' : badge}</Text>

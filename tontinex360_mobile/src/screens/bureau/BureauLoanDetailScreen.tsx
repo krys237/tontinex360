@@ -105,7 +105,7 @@ export default function BureauLoanDetailScreen() {
 
         {/* Actions (prêt en attente) */}
         {isPending ? (
-          <RequirePermission anyOf={['finance.loans', 'finance.*']} president>
+          <RequirePermission bureau>
             {counter ? (
               <Card style={styles.card}>
                 <TextField

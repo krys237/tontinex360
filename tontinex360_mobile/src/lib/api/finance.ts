@@ -11,6 +11,10 @@ import type {
   ContributionCorrectionRequest,
   LoanSettings,
   LoanCapacity,
+  LoanCoverage,
+  MyGuaranteeItem,
+  TontineBalances,
+  ArrearsPreview,
 } from '../types/finance';
 
 export const financeApi = {
@@ -36,6 +40,26 @@ export const financeApi = {
         device_info: deviceInfo ?? {},
       })
       .then((r) => r.data),
+
+  /** Ajoute un paiement complémentaire (sans approbation, plafonné au montant attendu). */
+  topUpContribution: (
+    id: string,
+    data: { amount: number; payment_method?: string; notes?: string; treasury_account?: string },
+  ) => api.post<Contribution>(`/finance/contributions/${id}/top-up/`, data).then((r) => r.data),
+
+  /** Aperçu de la ventilation retards + séance courante (sans rien créer). */
+  arrearsPreview: (params: { membership: string; session: string; tontine_type: string }) =>
+    api.get<ArrearsPreview>('/finance/contributions/arrears-preview/', { params }).then((r) => r.data),
+
+  /** Saisit un paiement et le ventile entre retards + séance courante (pas d'avance). */
+  payArrears: (data: {
+    membership: string;
+    session: string;
+    tontine_type: string;
+    amount: number;
+    payment_method?: string;
+    notes?: string;
+  }) => api.post('/finance/contributions/pay-arrears/', data).then((r) => r.data),
 
   /** Trésorier inspecte le justificatif et valide → comptabilisation. */
   validateContribution: (id: string, data?: { notes?: string; treasury_account?: string }) =>
@@ -112,6 +136,27 @@ export const financeApi = {
 
   getLoanCapacity: () =>
     api.get<LoanCapacity>('/finance/loans/capacity/').then((r) => r.data),
+
+  // ---------- Garants ----------
+  getLoanCoverage: (membershipId?: string) =>
+    api
+      .get<LoanCoverage>('/finance/loans/coverage/', { params: membershipId ? { membership: membershipId } : undefined })
+      .then((r) => r.data),
+  attachGuarantors: (loanId: string, guarantors: string[]) =>
+    api.post<Loan>(`/finance/loans/${loanId}/attach-guarantors/`, { guarantors }).then((r) => r.data),
+  guarantorAccept: (loanId: string, note?: string) =>
+    api.post<Loan>(`/finance/loans/${loanId}/guarantor-accept/`, { note: note ?? '' }).then((r) => r.data),
+  guarantorDecline: (loanId: string, note?: string) =>
+    api.post<Loan>(`/finance/loans/${loanId}/guarantor-decline/`, { note: note ?? '' }).then((r) => r.data),
+  myGuarantees: () =>
+    api.get<MyGuaranteeItem[] | Paginated<MyGuaranteeItem>>('/finance/loans/my-guarantees/').then((r) => unwrap(r.data)),
+
+  removeLoanRepayment: (id: string) =>
+    api.delete(`/finance/loan-repayments/${id}/`).then((r) => r.data),
+
+  // ---------- Soldes par fonds (par type de cotisation) ----------
+  tontineBalances: () =>
+    api.get<TontineBalances>('/finance/tontine-balances/').then((r) => r.data),
 
   // ---------- Loan repayments ----------
   loanRepayments: (params?: { loan?: string; session?: string }) =>

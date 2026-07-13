@@ -52,3 +52,28 @@ export interface Association {
   created_at: string;
   settings?: Record<string, any>;
 }
+
+/** Résultat de recherche publique d'association (avant adhésion). */
+export interface AssociationSearchResult {
+  id: string;
+  name: string;
+  slug: string;
+  city: string;
+  description: string;
+  logo?: string | null;
+}
+
+export type JoinRequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
+
+/** Demande d'adhésion envoyée par l'utilisateur courant. */
+export interface MyJoinRequest {
+  id: string;
+  association_slug: string;
+  association_name: string;
+  association_logo?: string | null;
+  status: JoinRequestStatus;
+  motivation: string;
+  review_note: string;
+  created_at: string;
+  reviewed_at?: string | null;
+}

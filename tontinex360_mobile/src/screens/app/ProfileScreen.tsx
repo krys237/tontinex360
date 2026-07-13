@@ -53,7 +53,7 @@ function Row({
 }) {
   return (
     <Pressable onPress={onPress} style={[styles.row, !first && styles.rowDivider]}>
-      <IconBubble icon={icon} tint={tint ?? 'lime'} size={36} />
+      <IconBubble icon={icon} tint={tint ?? 'white'} size={36} />
       <Text style={styles.rowLabel}>{label}</Text>
       {value ? <Text style={styles.rowValue}>{value}</Text> : null}
       {right ?? <Ionicons name="chevron-forward" size={16} color={colors.textLight} />}
@@ -127,11 +127,11 @@ export default function ProfileScreen() {
         </View>
 
         {/* Hero */}
-        <LinearGradient colors={[colors.greenBg, colors.greenBgDeep]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
+        <LinearGradient colors={[colors.primary, colors.primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
           <View style={styles.heroRow}>
-            <LinearGradient colors={[colors.green[500], colors.primary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.avatar}>
+            <View style={styles.avatar}>
               <Text style={styles.avatarText}>{initials}</Text>
-            </LinearGradient>
+            </View>
             <View style={styles.flex}>
               <Text style={styles.name}>
                 {user?.first_name} {user?.last_name}
@@ -164,30 +164,25 @@ export default function ProfileScreen() {
         {/* Espace Bureau (réservé aux membres du bureau) */}
         {isBureau ? (
           <Pressable onPress={() => navigation.navigate('Bureau', { screen: 'BureauDashboard' })}>
-            <LinearGradient
-              colors={[colors.primary, colors.primaryDark]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.bureauCard}
-            >
+            <View style={styles.bureauCard}>
               <View style={styles.bureauIcon}>
-                <Ionicons name="briefcase" size={22} color={colors.white} />
+                <Ionicons name="briefcase" size={22} color={colors.primary} />
               </View>
               <View style={styles.flex}>
                 <Text style={styles.bureauTitle}>Espace Bureau</Text>
                 <Text style={styles.bureauSub}>Gérer la tontine — {roleLabel}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.white} />
-            </LinearGradient>
+              <Ionicons name="chevron-forward" size={18} color={colors.primary} />
+            </View>
           </Pressable>
         ) : null}
 
         {/* Compte */}
         <SectionLabel>Compte</SectionLabel>
         <Card style={styles.card}>
-          <Row icon="create-outline" tint="lime" label="Modifier mon profil" first onPress={() => soon('Modifier mon profil')} />
-          <Row icon="lock-closed" tint="primary" label="Changer le mot de passe" onPress={() => soon('Changer le mot de passe')} />
-          <Row icon="shield-checkmark" tint="accent" label="Sécurité & connexion" onPress={() => soon('Sécurité')} />
+          <Row icon="create-outline" tint="white" label="Modifier mon profil" first onPress={() => soon('Modifier mon profil')} />
+          <Row icon="lock-closed" tint="white" label="Changer le mot de passe" onPress={() => soon('Changer le mot de passe')} />
+          <Row icon="shield-checkmark" tint="white" label="Sécurité & connexion" onPress={() => soon('Sécurité')} />
         </Card>
 
         {/* Préférences */}
@@ -195,28 +190,28 @@ export default function ProfileScreen() {
         <Card style={styles.card}>
           <Row
             icon="notifications-outline"
-            tint="primary"
+            tint="white"
             label="Notifications"
             first
             right={<Switch on={notif} onToggle={toggleNotif} />}
             onPress={toggleNotif}
           />
-          <Row icon="globe" tint="info" label="Langue" value="Français" onPress={() => soon('Langue')} />
+          <Row icon="globe" tint="white" label="Langue" value="Français" onPress={() => soon('Langue')} />
         </Card>
 
         {/* Mon association */}
         <SectionLabel>Mon association</SectionLabel>
         <Card style={styles.card}>
-          <Row icon="business" tint="lime" label="Mon adhésion" value={assoc?.name} first onPress={() => soon('Mon adhésion')} />
-          <Row icon="document-text" tint="primary" label="Mes procurations" onPress={() => navigation.navigate('Procurations')} />
+          <Row icon="business" tint="white" label="Mon adhésion" value={assoc?.name} first onPress={() => soon('Mon adhésion')} />
+          <Row icon="document-text" tint="white" label="Mes procurations" onPress={() => navigation.navigate('Procurations')} />
         </Card>
 
         {/* Support */}
         <SectionLabel>Support</SectionLabel>
         <Card style={styles.card}>
-          <Row icon="help-circle" tint="lime" label="Aide & FAQ" first onPress={() => soon('Aide & FAQ')} />
-          <Row icon="document-text" tint="primary" label="Conditions d'utilisation" onPress={() => soon("Conditions d'utilisation")} />
-          <Row icon="information-circle" tint="info" label="À propos" value="v1.0.0" onPress={() => soon('À propos')} />
+          <Row icon="help-circle" tint="white" label="Aide & FAQ" first onPress={() => soon('Aide & FAQ')} />
+          <Row icon="document-text" tint="white" label="Conditions d'utilisation" onPress={() => soon("Conditions d'utilisation")} />
+          <Row icon="information-circle" tint="white" label="À propos" value="v1.0.0" onPress={() => soon('À propos')} />
         </Card>
 
         {/* Logout */}
@@ -241,10 +236,10 @@ const styles = StyleSheet.create({
 
   hero: { borderRadius: radius.hero, padding: 20, ...cardShadow },
   heroRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  avatar: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: colors.white, fontWeight: font.bold, fontSize: 24 },
-  name: { fontSize: font.size.lg, fontWeight: font.bold, color: colors.text },
-  phone: { fontSize: font.size.sm, color: colors.textMuted, marginTop: 1 },
+  avatar: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.white },
+  avatarText: { color: colors.primary, fontWeight: font.bold, fontSize: 24 },
+  name: { fontSize: font.size.lg, fontWeight: font.bold, color: colors.white },
+  phone: { fontSize: font.size.sm, color: 'rgba(255,255,255,0.85)', marginTop: 1 },
   chipWrap: { marginTop: 8 },
 
   miniRow: { flexDirection: 'row', backgroundColor: colors.white, borderRadius: 16, padding: 14, marginTop: 16, ...cardShadow },
@@ -254,10 +249,10 @@ const styles = StyleSheet.create({
   miniValueDark: { fontSize: font.size.md, fontWeight: font.bold, color: colors.text },
   miniLabel: { fontSize: 10, color: colors.textMuted, marginTop: 2 },
 
-  bureauCard: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: radius.lg, padding: spacing.lg, ...cardShadow },
-  bureauIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
-  bureauTitle: { fontSize: font.size.md, fontWeight: font.bold, color: colors.white },
-  bureauSub: { fontSize: font.size.xs, color: 'rgba(255,255,255,0.85)', marginTop: 1 },
+  bureauCard: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: radius.lg, padding: spacing.lg, backgroundColor: colors.greenBg, ...cardShadow },
+  bureauIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  bureauTitle: { fontSize: font.size.md, fontWeight: font.bold, color: colors.text },
+  bureauSub: { fontSize: font.size.xs, color: colors.textMuted, marginTop: 1 },
 
   sectionLabel: { fontSize: font.size.sm, fontWeight: font.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4, marginLeft: 4, marginBottom: -6 },
   card: { borderRadius: radius.lg, paddingVertical: 4, ...cardShadow },

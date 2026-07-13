@@ -21,11 +21,43 @@ export interface Contribution {
   status: ContributionStatus;
   payment_method?: string;
   paid_at?: string;
+  created_at?: string;
   has_receipt?: boolean;
   has_pending_correction?: boolean;
+  receipt_number?: string;
+  receipt_pdf?: string | null;
+  receipt_hash?: string;
+  receipt_signed_at?: string | null;
   contribution_kind?: 'cash' | 'in_kind';
   in_kind_unit_label?: string;
   in_kind_unit_value?: number | null;
+}
+
+export interface ArrearsPreviewLine {
+  contribution_id: string;
+  session_id: string;
+  session_number: number;
+  session_date: string;
+  status: ContributionStatus;
+  owed: string;
+}
+
+export interface ArrearsPreview {
+  membership_id: string;
+  tontine_type?: { id: string; name: string };
+  session?: { id: string; session_number: number };
+  arrears: ArrearsPreviewLine[];
+  current?: {
+    contribution_id: string | null;
+    status: string;
+    expected: string;
+    already_paid: string;
+    owed: string;
+  } | null;
+  total_arrears?: string;
+  total_current?: string;
+  total_due: string;
+  message?: string;
 }
 
 export type LoanStatus =
@@ -36,12 +68,24 @@ export type LoanStatus =
   | 'repaid'
   | 'defaulted';
 
+export interface LoanGuarantorAcceptance {
+  id: string;
+  loan: string;
+  guarantor: string;
+  guarantor_name?: string;
+  status: 'pending' | 'accepted' | 'declined';
+  decided_at?: string | null;
+  note?: string;
+  created_at: string;
+}
+
 export interface Loan {
   id: string;
   membership: string;
   member_name?: string;
   amount: number;
   approved_amount?: number | null;
+  effective_amount?: number | string;
   interest_rate: number;
   total_due: number;
   total_repaid: number;
@@ -53,7 +97,38 @@ export interface Loan {
   purpose?: string;
   reason?: string;
   approved_by?: string | null;
+  requester_decision?: 'none' | 'accepted' | 'declined';
+  requester_decided_at?: string | null;
+  counter_offer_note?: string;
+  guarantor_acceptances?: LoanGuarantorAcceptance[];
   created_at: string;
+}
+
+export interface LoanCoverage {
+  expected_payouts: string;
+  committed_as_guarantor: string;
+  available_coverage: string;
+}
+
+export interface MyGuaranteeItem {
+  acceptance_id: string;
+  acceptance_status: 'pending' | 'accepted' | 'declined';
+  decided_at?: string | null;
+  loan: Loan;
+}
+
+export interface TontineBalances {
+  funds: Array<{
+    tontine_type_id: string;
+    name: string;
+    slug: string;
+    currency: string;
+    credits: number | string;
+    debits: number | string;
+    balance: number | string;
+  }>;
+  unassigned: { name: string; balance: number | string };
+  total: number | string;
 }
 
 // ---------- Remboursements ----------

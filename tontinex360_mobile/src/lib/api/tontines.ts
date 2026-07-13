@@ -11,6 +11,12 @@ export const tontinesApi = {
   getType: (id: string) =>
     api.get<TontineType>(`/tontines/types/${id}/`).then((r) => r.data),
 
+  createType: (data: Partial<TontineType>) =>
+    api.post<TontineType>('/tontines/types/', data).then((r) => r.data),
+
+  updateType: (id: string, data: Partial<TontineType>) =>
+    api.patch<TontineType>(`/tontines/types/${id}/`, data).then((r) => r.data),
+
   subscriptions: (params?: { cycle?: string; tontine_type?: string }) =>
     api
       .get<MemberSubscription[] | Paginated<MemberSubscription>>('/tontines/subscriptions/', { params })

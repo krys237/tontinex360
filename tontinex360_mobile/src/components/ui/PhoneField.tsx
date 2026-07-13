@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, Pressable } from 'react-native';
 import { ChevronDown } from 'lucide-react-native';
 import { colors } from '../../theme/colors';
@@ -34,6 +34,7 @@ export default function PhoneField({
   onPressCountry,
   placeholder = '6XX XXX XXX',
 }: Props) {
+  const [isFocused, setIsFocused] = useState(false);
   return (
     <View style={styles.container}>
       {label ? (
@@ -54,7 +55,7 @@ export default function PhoneField({
           <ChevronDown size={16} color={colors.textMuted} />
         </Pressable>
 
-        <View style={[styles.numberWrap, !!error && styles.fieldError]}>
+        <View style={[styles.numberWrap, isFocused && styles.fieldFocused, !!error && styles.fieldError]}>
           <TextInput
             style={styles.input}
             value={value}
@@ -64,6 +65,8 @@ export default function PhoneField({
             keyboardType="phone-pad"
             autoComplete="tel"
             textContentType="telephoneNumber"
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
           />
         </View>
       </View>
@@ -96,7 +99,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.inputBg,
     borderWidth: 1,
     borderColor: colors.inputBorder,
-    borderRadius: radius.pill,
+    borderRadius: radius.md,
   },
   countryCode: { fontSize: font.size.sm, fontWeight: font.bold, color: colors.text },
   dial: { fontSize: font.size.base, fontWeight: font.semibold, color: colors.text },
@@ -108,7 +111,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.inputBg,
     borderWidth: 1,
     borderColor: colors.inputBorder,
-    borderRadius: radius.pill,
+    borderRadius: radius.md,
+  },
+  fieldFocused: {
+    borderColor: colors.primary,
   },
   fieldError: { borderColor: colors.danger },
   input: { fontSize: font.size.base, color: colors.textStrong, paddingVertical: 12 },

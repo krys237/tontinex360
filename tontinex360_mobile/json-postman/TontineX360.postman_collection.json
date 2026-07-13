@@ -1,0 +1,1069 @@
+{
+  "info": {
+    "_postman_id": "b8f4a9c1-tontine-x360-e2e",
+    "name": "TontineX360 — API E2E",
+    "description": "# TontineX360 — Collection Postman complète\n\nTeste l'ensemble du flux applicatif : auth → onboarding → configuration tontine → runtime (séances, cotisations, enchères, distributions) → wallet & clôture.\n\n## Variables d'environnement à définir\n\n| Variable | Description | Exemple |\n|---|---|---|\n| `base_url` | URL du backend | `https://tontine-project.onrender.com` |\n| `tenant_slug` | Slug de l'asso active (auto-set après login) | `e-drtim` |\n| `access_token` | JWT access (auto-set après login) | ... |\n| `refresh_token` | JWT refresh (auto-set après login) | ... |\n| `user_phone` | Téléphone du user pour les tests | `+237655362943` |\n| `user_password` | Password du user pour les tests | `SuperSecret123!` |\n\n## Ordre recommandé pour un test E2E\n\n1. **Auth** : Register → Login (les tokens sont sauvegardés automatiquement)\n2. **Associations** : Créer / Rejoindre / Sélectionner\n3. **Members** : Inviter des membres, gérer les demandes\n4. **Tontines** : Créer un type + un cycle\n5. **Cycle** : Souscription + Ouvrir un pot\n6. **Runtime** : Cotiser → Séances → Enchères → Distributions\n7. **Wallet** : Consulter son wallet + entries\n8. **Clôture** : Fermer pot, fermer cycle, settlement\n\n## Header X-Tenant\n\nToutes les requêtes multi-tenant utilisent `X-Tenant: {{tenant_slug}}` — auto-injecté après avoir sélectionné une asso.\n",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{access_token}}", "type": "string" }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Injecte X-Tenant automatiquement si tenant_slug est défini",
+          "const slug = pm.variables.get('tenant_slug');",
+          "if (slug && !pm.request.headers.has('X-Tenant')) {",
+          "  pm.request.headers.add({ key: 'X-Tenant', value: slug });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "base_url", "value": "https://tontine-project.onrender.com" },
+    { "key": "tenant_slug", "value": "" },
+    { "key": "access_token", "value": "" },
+    { "key": "refresh_token", "value": "" },
+    { "key": "user_phone", "value": "+237655362943" },
+    { "key": "user_password", "value": "ChangeMe123!" }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication",
+      "description": "Register, login, refresh, forgot password.",
+      "item": [
+        {
+          "name": "Register (nouveau user)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/register/", "host": ["{{base_url}}"], "path": ["api", "auth", "register", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"telephone\": \"{{user_phone}}\",\n  \"password\": \"{{user_password}}\",\n  \"first_name\": \"Steve\",\n  \"last_name\": \"Kameni\",\n  \"email\": \"steve.test@example.com\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login (récupère JWT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.tokens?.access) {",
+                  "  pm.collectionVariables.set('access_token', j.tokens.access);",
+                  "  pm.collectionVariables.set('refresh_token', j.tokens.refresh);",
+                  "  console.log('Tokens sauvegardés.');",
+                  "}",
+                  "if (j.user?.id) console.log('User: ' + j.user.telephone);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/login/", "host": ["{{base_url}}"], "path": ["api", "auth", "login", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"telephone\": \"{{user_phone}}\",\n  \"password\": \"{{user_password}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Refresh token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.access) pm.collectionVariables.set('access_token', j.access);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/token/refresh/", "host": ["{{base_url}}"], "path": ["api", "auth", "token", "refresh", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"refresh\": \"{{refresh_token}}\"\n}" }
+          }
+        },
+        {
+          "name": "Me (profil courant)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/auth/me/", "host": ["{{base_url}}"], "path": ["api", "auth", "me", ""] }
+          }
+        },
+        {
+          "name": "Change password (authentifié)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/change-password/", "host": ["{{base_url}}"], "path": ["api", "auth", "change-password", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"old_password\": \"{{user_password}}\",\n  \"new_password\": \"NewSecret456!\"\n}" }
+          }
+        },
+        {
+          "name": "Forgot password — Request OTP",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/change-fogot-password/", "host": ["{{base_url}}"], "path": ["api", "auth", "change-fogot-password", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"telephone\": \"{{user_phone}}\"\n}" }
+          }
+        },
+        {
+          "name": "Forgot password — Verify OTP + Reset",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/valid-otp/", "host": ["{{base_url}}"], "path": ["api", "auth", "valid-otp", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"telephone\": \"{{user_phone}}\",\n  \"otp\": \"123456\",\n  \"new_password\": \"NewSecret456!\"\n}" }
+          }
+        },
+        {
+          "name": "FCM — Enregistrer un token push",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/register-fcm-token/", "host": ["{{base_url}}"], "path": ["api", "auth", "register-fcm-token", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"token\": \"dQwxxxxxxxxxxxxx_TOKEN_FCM_ICI\",\n  \"device_type\": \"web\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Associations",
+      "description": "Onboarding : créer, rechercher, rejoindre, sélectionner une asso.",
+      "item": [
+        {
+          "name": "Mes associations",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.active_slug) {",
+                  "  pm.collectionVariables.set('tenant_slug', j.active_slug);",
+                  "  console.log('tenant_slug -> ' + j.active_slug);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/auth/associations/", "host": ["{{base_url}}"], "path": ["api", "auth", "associations", ""] }
+          }
+        },
+        {
+          "name": "Créer une nouvelle association",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.slug) pm.collectionVariables.set('tenant_slug', j.slug);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/associations/create/", "host": ["{{base_url}}"], "path": ["api", "auth", "associations", "create", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Association 2028\",\n  \"description\": \"Association de test API\",\n  \"country\": \"CM\",\n  \"city\": \"Yaoundé\",\n  \"currency\": \"XAF\",\n  \"visibility\": \"public\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Recherche publique",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/auth/associations/search/?q=noedy",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "associations", "search", ""],
+              "query": [{ "key": "q", "value": "noedy" }]
+            }
+          }
+        },
+        {
+          "name": "Sélectionner asso active",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/associations/select/", "host": ["{{base_url}}"], "path": ["api", "auth", "associations", "select", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"slug\": \"{{tenant_slug}}\"\n}" }
+          }
+        },
+        {
+          "name": "Modifier asso (settings)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/associations/{{tenant_slug}}/", "host": ["{{base_url}}"], "path": ["api", "auth", "associations", "{{tenant_slug}}", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"city\": \"Douala\"\n}" }
+          }
+        },
+        {
+          "name": "Envoyer une demande d'adhésion",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/members/join-request/", "host": ["{{base_url}}"], "path": ["api", "members", "join-request", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"association_slug\": \"noedy\",\n  \"message\": \"J'aimerais rejoindre votre asso.\"\n}" }
+          }
+        },
+        {
+          "name": "Mes demandes d'adhésion",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/members/my-join-requests/", "host": ["{{base_url}}"], "path": ["api", "members", "my-join-requests", ""] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Members & Roles",
+      "item": [
+        {
+          "name": "Liste des membres (paginée)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/members/memberships/?page=1&page_size=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "members", "memberships", ""],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "page_size", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Mon membership dans cette asso",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/members/my-membership/", "host": ["{{base_url}}"], "path": ["api", "members", "my-membership", ""] }
+          }
+        },
+        {
+          "name": "Détail d'un membership",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/members/memberships/:membership_id/", "host": ["{{base_url}}"], "path": ["api", "members", "memberships", ":membership_id", ""], "variable": [{ "key": "membership_id", "value": "UUID_ICI" }] }
+          }
+        },
+        {
+          "name": "Rôles disponibles",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/members/roles/", "host": ["{{base_url}}"], "path": ["api", "members", "roles", ""] }
+          }
+        },
+        {
+          "name": "Config des frais d'adhésion",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/members/fees/config/", "host": ["{{base_url}}"], "path": ["api", "members", "fees", "config", ""] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Invitations",
+      "item": [
+        {
+          "name": "Envoyer une invitation",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/invitations/send/", "host": ["{{base_url}}"], "path": ["api", "invitations", "send", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"telephone\": \"+237690000001\",\n  \"first_name\": \"Marie\",\n  \"last_name\": \"Tchamou\",\n  \"role_id\": null\n}" }
+          }
+        },
+        {
+          "name": "Liste des invitations",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/invitations/", "host": ["{{base_url}}"], "path": ["api", "invitations", ""] }
+          }
+        },
+        {
+          "name": "Relancer une invitation",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/invitations/:pk/resend/", "host": ["{{base_url}}"], "path": ["api", "invitations", ":pk", "resend", ""], "variable": [{ "key": "pk", "value": "UUID_ICI" }] }
+          }
+        },
+        {
+          "name": "Annuler une invitation",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/invitations/:pk/cancel/", "host": ["{{base_url}}"], "path": ["api", "invitations", ":pk", "cancel", ""], "variable": [{ "key": "pk", "value": "UUID_ICI" }] }
+          }
+        },
+        {
+          "name": "Vérifier un token d'invitation (public)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/invitations/check/:token/", "host": ["{{base_url}}"], "path": ["api", "invitations", "check", ":token", ""], "variable": [{ "key": "token", "value": "TOKEN_ICI" }] }
+          }
+        },
+        {
+          "name": "Accepter une invitation (nouveau user)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/invitations/register-and-accept/", "host": ["{{base_url}}"], "path": ["api", "invitations", "register-and-accept", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"token\": \"INVITATION_TOKEN\",\n  \"password\": \"NouveauPass123!\",\n  \"first_name\": \"Marie\",\n  \"last_name\": \"Tchamou\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Tontines & Cycles",
+      "item": [
+        {
+          "name": "Types de tontine",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/tontines/types/", "host": ["{{base_url}}"], "path": ["api", "tontines", "types", ""] }
+          }
+        },
+        {
+          "name": "Créer un type — Rotative taux fixe",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.id) pm.collectionVariables.set('tontine_type_id', j.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/tontines/types/", "host": ["{{base_url}}"], "path": ["api", "tontines", "types", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Tontine principale\",\n  \"description\": \"Tontine rotative classique\",\n  \"contribution_kind\": \"cash\",\n  \"rate_mode\": \"fixed\",\n  \"fixed_rate\": 1000,\n  \"currency\": \"XAF\",\n  \"allows_multiple_shares\": true,\n  \"max_shares_per_member\": 4,\n  \"share_unit_name\": \"nom\",\n  \"payout_pattern\": \"rotating\",\n  \"default_acquisition_method\": \"auction\",\n  \"payout_schedule\": \"end_of_cycle\",\n  \"is_active\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Créer un type — Banque scolaire",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/tontines/types/", "host": ["{{base_url}}"], "path": ["api", "tontines", "types", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Épargne scolaire\",\n  \"contribution_kind\": \"cash\",\n  \"rate_mode\": \"free\",\n  \"currency\": \"XAF\",\n  \"share_unit_name\": \"nom\",\n  \"payout_pattern\": \"individual_savings\",\n  \"payout_schedule\": \"annual\",\n  \"is_active\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Créer un type — Caisse commune date précise",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/tontines/types/", "host": ["{{base_url}}"], "path": ["api", "tontines", "types", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Caisse décès 2028\",\n  \"contribution_kind\": \"cash\",\n  \"rate_mode\": \"fixed\",\n  \"fixed_rate\": 500,\n  \"currency\": \"XAF\",\n  \"share_unit_name\": \"nom\",\n  \"payout_pattern\": \"collective_savings\",\n  \"payout_schedule\": \"fixed_date\",\n  \"next_payout_date\": \"2028-01-25\",\n  \"is_active\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Modifier un type",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/tontines/types/{{tontine_type_id}}/", "host": ["{{base_url}}"], "path": ["api", "tontines", "types", "{{tontine_type_id}}", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"description\": \"Description modifiée\"\n}" }
+          }
+        },
+        {
+          "name": "Créer une souscription (num_shares fractionnaire)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/tontines/subscriptions/", "host": ["{{base_url}}"], "path": ["api", "tontines", "subscriptions", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"membership\": \"MEMBERSHIP_UUID\",\n  \"tontine_type\": \"{{tontine_type_id}}\",\n  \"cycle\": \"{{cycle_id}}\",\n  \"num_shares\": 1.5,\n  \"rate_per_share\": 1000\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Cycles & Sessions",
+      "item": [
+        {
+          "name": "Liste des cycles",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/cycles/cycles/", "host": ["{{base_url}}"], "path": ["api", "cycles", "cycles", ""] }
+          }
+        },
+        {
+          "name": "Créer un cycle",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.id) pm.collectionVariables.set('cycle_id', j.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/cycles/cycles/", "host": ["{{base_url}}"], "path": ["api", "cycles", "cycles", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Cycle 2026-01\",\n  \"start_date\": \"2026-01-01\",\n  \"end_date\": \"2026-12-31\",\n  \"session_recurrence\": \"monthly\",\n  \"status\": \"active\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Associer une tontine au cycle (CycleTontineConfig)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/cycles/configs/", "host": ["{{base_url}}"], "path": ["api", "cycles", "configs", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cycle\": \"{{cycle_id}}\",\n  \"tontine_type\": \"{{tontine_type_id}}\",\n  \"acquisition_method\": \"auction\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Liste des séances (avec filtre cycle)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/cycles/sessions/?cycle={{cycle_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "cycles", "sessions", ""],
+              "query": [{ "key": "cycle", "value": "{{cycle_id}}" }]
+            }
+          }
+        },
+        {
+          "name": "Créer une séance",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.id) pm.collectionVariables.set('session_id', j.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/cycles/sessions/", "host": ["{{base_url}}"], "path": ["api", "cycles", "sessions", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cycle\": \"{{cycle_id}}\",\n  \"session_number\": 1,\n  \"date\": \"2026-01-15\",\n  \"status\": \"scheduled\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Clôturer une séance",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/cycles/sessions/{{session_id}}/close/", "host": ["{{base_url}}"], "path": ["api", "cycles", "sessions", "{{session_id}}", "close", ""] }
+          }
+        },
+        {
+          "name": "Rapport de séance",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/cycles/session-reports/?session={{session_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "cycles", "session-reports", ""],
+              "query": [{ "key": "session", "value": "{{session_id}}" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Pots (cagnottes)",
+      "item": [
+        {
+          "name": "Liste des pots",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/cycles/pots/?session={{session_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "cycles", "pots", ""],
+              "query": [{ "key": "session", "value": "{{session_id}}" }]
+            }
+          }
+        },
+        {
+          "name": "Ouvrir un pot pour une séance",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.id) pm.collectionVariables.set('pot_id', j.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/cycles/sessions/{{session_id}}/open-pot/", "host": ["{{base_url}}"], "path": ["api", "cycles", "sessions", "{{session_id}}", "open-pot", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tontine_type\": \"{{tontine_type_id}}\",\n  \"acquisition_method\": \"auction\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Distribuer (méthode manuelle / random)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/cycles/pots/{{pot_id}}/distribute/", "host": ["{{base_url}}"], "path": ["api", "cycles", "pots", "{{pot_id}}", "distribute", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"membership_id\": \"MEMBERSHIP_UUID\",\n  \"shares_claimed\": 1.5\n}"
+            }
+          }
+        },
+        {
+          "name": "Traiter les enchères (finaliser)",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/cycles/pots/{{pot_id}}/auction/", "host": ["{{base_url}}"], "path": ["api", "cycles", "pots", "{{pot_id}}", "auction", ""] }
+          }
+        },
+        {
+          "name": "Fermer un pot",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/cycles/pots/{{pot_id}}/close/", "host": ["{{base_url}}"], "path": ["api", "cycles", "pots", "{{pot_id}}", "close", ""] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Enchères & Payouts",
+      "item": [
+        {
+          "name": "Placer une enchère (avec fraction)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/cycles/bids/", "host": ["{{base_url}}"], "path": ["api", "cycles", "bids", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pot\": \"{{pot_id}}\",\n  \"membership\": \"MEMBERSHIP_UUID\",\n  \"bid_amount\": 2000,\n  \"shares_requested\": 2\n}"
+            }
+          }
+        },
+        {
+          "name": "Liste enchères par pot",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/cycles/bids/?pot={{pot_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "cycles", "bids", ""],
+              "query": [{ "key": "pot", "value": "{{pot_id}}" }]
+            }
+          }
+        },
+        {
+          "name": "Liste payouts (bénéficiaires)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/cycles/payouts/?session={{session_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "cycles", "payouts", ""],
+              "query": [{ "key": "session", "value": "{{session_id}}" }]
+            }
+          }
+        },
+        {
+          "name": "Détail d'un payout",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/cycles/payouts/:payout_id/", "host": ["{{base_url}}"], "path": ["api", "cycles", "payouts", ":payout_id", ""], "variable": [{ "key": "payout_id", "value": "UUID" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Finance — Cotisations & Prêts",
+      "item": [
+        {
+          "name": "Liste des cotisations",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/finance/contributions/?session={{session_id}}&page_size=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "finance", "contributions", ""],
+              "query": [
+                { "key": "session", "value": "{{session_id}}" },
+                { "key": "page_size", "value": "50" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Enregistrer une cotisation",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/finance/contributions/", "host": ["{{base_url}}"], "path": ["api", "finance", "contributions", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"session\": \"{{session_id}}\",\n  \"membership\": \"MEMBERSHIP_UUID\",\n  \"tontine_type\": \"{{tontine_type_id}}\",\n  \"num_shares\": 1,\n  \"rate_per_share\": 1000,\n  \"expected_amount\": 1000,\n  \"paid_amount\": 1000,\n  \"status\": \"paid\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Top-up (compléter une contribution)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/finance/contributions/:contribution_id/top-up/", "host": ["{{base_url}}"], "path": ["api", "finance", "contributions", ":contribution_id", "top-up", ""], "variable": [{ "key": "contribution_id", "value": "UUID" }] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 500\n}" }
+          }
+        },
+        {
+          "name": "Régulariser un impayé (arrears)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/finance/contributions/:contribution_id/pay-arrears/", "host": ["{{base_url}}"], "path": ["api", "finance", "contributions", ":contribution_id", "pay-arrears", ""], "variable": [{ "key": "contribution_id", "value": "UUID" }] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 1000\n}" }
+          }
+        },
+        {
+          "name": "Valider une contribution",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/finance/contributions/:contribution_id/validate/", "host": ["{{base_url}}"], "path": ["api", "finance", "contributions", ":contribution_id", "validate", ""], "variable": [{ "key": "contribution_id", "value": "UUID" }] }
+          }
+        },
+        {
+          "name": "Demander un prêt",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/finance/loans/", "host": ["{{base_url}}"], "path": ["api", "finance", "loans", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"membership\": \"MEMBERSHIP_UUID\",\n  \"amount\": 50000,\n  \"interest_rate\": 5,\n  \"duration_months\": 6,\n  \"purpose\": \"Achat matériel\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Rembourser un prêt",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/finance/loan-repayments/", "host": ["{{base_url}}"], "path": ["api", "finance", "loan-repayments", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loan\": \"LOAN_UUID\",\n  \"amount\": 10000,\n  \"session\": \"{{session_id}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Trésorerie (comptes)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/finance/treasury/", "host": ["{{base_url}}"], "path": ["api", "finance", "treasury", ""] }
+          }
+        },
+        {
+          "name": "Transactions",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/finance/transactions/?page_size=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "finance", "transactions", ""],
+              "query": [{ "key": "page_size", "value": "50" }]
+            }
+          }
+        },
+        {
+          "name": "Balance par tontine",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/finance/tontine-balances/", "host": ["{{base_url}}"], "path": ["api", "finance", "tontine-balances", ""] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Wallets",
+      "item": [
+        {
+          "name": "Mon wallet",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/wallets/me/", "host": ["{{base_url}}"], "path": ["api", "wallets", "me", ""] }
+          }
+        },
+        {
+          "name": "Mes entries",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/wallets/me/entries/", "host": ["{{base_url}}"], "path": ["api", "wallets", "me", "entries", ""] }
+          }
+        },
+        {
+          "name": "Mon summary",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/wallets/me/summary/", "host": ["{{base_url}}"], "path": ["api", "wallets", "me", "summary", ""] }
+          }
+        },
+        {
+          "name": "Cycle settlement (récap)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/wallets/cycle-settlement/?cycle={{cycle_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "wallets", "cycle-settlement", ""],
+              "query": [{ "key": "cycle", "value": "{{cycle_id}}" }]
+            }
+          }
+        },
+        {
+          "name": "Ajustement manuel wallet",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/wallets/manual-adjustment/", "host": ["{{base_url}}"], "path": ["api", "wallets", "manual-adjustment", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"membership\": \"MEMBERSHIP_UUID\",\n  \"amount\": 2000,\n  \"direction\": \"credit\",\n  \"description\": \"Ajustement test\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "11. Notifications",
+      "item": [
+        {
+          "name": "Liste des notifications",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/notifications/?page_size=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notifications", ""],
+              "query": [{ "key": "page_size", "value": "20" }]
+            }
+          }
+        },
+        {
+          "name": "Compteur non lus",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/notifications/unread-count/", "host": ["{{base_url}}"], "path": ["api", "notifications", "unread-count", ""] }
+          }
+        },
+        {
+          "name": "Marquer comme lue",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/notifications/:notif_id/mark-read/", "host": ["{{base_url}}"], "path": ["api", "notifications", ":notif_id", "mark-read", ""], "variable": [{ "key": "notif_id", "value": "UUID" }] }
+          }
+        },
+        {
+          "name": "Marquer tout lu",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/notifications/mark-all-read/", "host": ["{{base_url}}"], "path": ["api", "notifications", "mark-all-read", ""] }
+          }
+        },
+        {
+          "name": "Préférences notifications",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/notifications/preferences/", "host": ["{{base_url}}"], "path": ["api", "notifications", "preferences", ""] }
+          }
+        },
+        {
+          "name": "Modifier préférences",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/notifications/preferences/", "host": ["{{base_url}}"], "path": ["api", "notifications", "preferences", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"push_enabled\": true,\n  \"email_enabled\": false\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "12. Chat",
+      "item": [
+        {
+          "name": "Liste conversations",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/chat/conversations/", "host": ["{{base_url}}"], "path": ["api", "chat", "conversations", ""] }
+          }
+        },
+        {
+          "name": "Canal général",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/chat/conversations/general/", "host": ["{{base_url}}"], "path": ["api", "chat", "conversations", "general", ""] }
+          }
+        },
+        {
+          "name": "Créer conv 1-à-1",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/chat/conversations/private/", "host": ["{{base_url}}"], "path": ["api", "chat", "conversations", "private", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"other_membership\": \"MEMBERSHIP_UUID\"\n}" }
+          }
+        },
+        {
+          "name": "Créer conv de groupe",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/chat/conversations/group/", "host": ["{{base_url}}"], "path": ["api", "chat", "conversations", "group", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Groupe test\",\n  \"members\": [\"UUID1\", \"UUID2\"]\n}" }
+          }
+        },
+        {
+          "name": "Messages d'une conversation",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/chat/conversations/:conv_id/messages/", "host": ["{{base_url}}"], "path": ["api", "chat", "conversations", ":conv_id", "messages", ""], "variable": [{ "key": "conv_id", "value": "UUID" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "13. Governance",
+      "item": [
+        {
+          "name": "Annonces",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/governance/announcements/", "host": ["{{base_url}}"], "path": ["api", "governance", "announcements", ""] }
+          }
+        },
+        {
+          "name": "Sondages",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/governance/polls/", "host": ["{{base_url}}"], "path": ["api", "governance", "polls", ""] }
+          }
+        },
+        {
+          "name": "Voter à un sondage",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/governance/polls/:poll_id/vote/", "host": ["{{base_url}}"], "path": ["api", "governance", "polls", ":poll_id", "vote", ""], "variable": [{ "key": "poll_id", "value": "UUID" }] },
+            "body": { "mode": "raw", "raw": "{\n  \"option_id\": \"UUID\"\n}" }
+          }
+        },
+        {
+          "name": "Élections",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/governance/elections/", "host": ["{{base_url}}"], "path": ["api", "governance", "elections", ""] }
+          }
+        },
+        {
+          "name": "Documents",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/governance/documents/", "host": ["{{base_url}}"], "path": ["api", "governance", "documents", ""] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "14. Sanctions",
+      "item": [
+        {
+          "name": "Types de sanction",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/sanctions/types/", "host": ["{{base_url}}"], "path": ["api", "sanctions", "types", ""] }
+          }
+        },
+        {
+          "name": "Sanctions appliquées",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/sanctions/sanctions/", "host": ["{{base_url}}"], "path": ["api", "sanctions", "sanctions", ""] }
+          }
+        },
+        {
+          "name": "Créer une sanction",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/sanctions/sanctions/", "host": ["{{base_url}}"], "path": ["api", "sanctions", "sanctions", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"membership\": \"MEMBERSHIP_UUID\",\n  \"sanction_type\": \"SANCTION_TYPE_UUID\",\n  \"amount\": 1000,\n  \"reason\": \"Absence non justifiée\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Payer une sanction",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/sanctions/sanctions/:sanction_id/pay/", "host": ["{{base_url}}"], "path": ["api", "sanctions", "sanctions", ":sanction_id", "pay", ""], "variable": [{ "key": "sanction_id", "value": "UUID" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "15. Subscriptions (Plans)",
+      "item": [
+        {
+          "name": "Plans disponibles",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/subscriptions/plans/", "host": ["{{base_url}}"], "path": ["api", "subscriptions", "plans", ""] }
+          }
+        },
+        {
+          "name": "Mon abonnement",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/subscriptions/my-subscription/", "host": ["{{base_url}}"], "path": ["api", "subscriptions", "my-subscription", ""] }
+          }
+        },
+        {
+          "name": "Plan recommandé",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/subscriptions/recommended-plan/", "host": ["{{base_url}}"], "path": ["api", "subscriptions", "recommended-plan", ""] }
+          }
+        },
+        {
+          "name": "Changer de plan",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/subscriptions/change-plan/", "host": ["{{base_url}}"], "path": ["api", "subscriptions", "change-plan", ""] },
+            "body": { "mode": "raw", "raw": "{\n  \"plan_id\": \"PLAN_UUID\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "16. Approvals (Triple validation)",
+      "item": [
+        {
+          "name": "Liste des demandes",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/approvals/requests/", "host": ["{{base_url}}"], "path": ["api", "approvals", "requests", ""] }
+          }
+        },
+        {
+          "name": "Voter (approve/reject)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/approvals/requests/:req_id/vote/", "host": ["{{base_url}}"], "path": ["api", "approvals", "requests", ":req_id", "vote", ""], "variable": [{ "key": "req_id", "value": "UUID" }] },
+            "body": { "mode": "raw", "raw": "{\n  \"decision\": \"approve\",\n  \"comment\": \"OK pour moi\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "17. Proxies (Procurations)",
+      "item": [
+        {
+          "name": "Liste des procurations",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/proxies/", "host": ["{{base_url}}"], "path": ["api", "proxies", ""] }
+          }
+        },
+        {
+          "name": "Créer une procuration",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/proxies/", "host": ["{{base_url}}"], "path": ["api", "proxies", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grantor\": \"MEMBERSHIP_UUID_GRANTOR\",\n  \"grantee\": \"MEMBERSHIP_UUID_GRANTEE\",\n  \"scope\": \"session\",\n  \"session\": \"{{session_id}}\",\n  \"tontine_type\": \"{{tontine_type_id}}\"\n}"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

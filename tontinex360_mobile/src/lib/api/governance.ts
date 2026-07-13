@@ -64,6 +64,40 @@ export interface PollResults {
   options: PollResultOption[];
 }
 
+export interface GovernanceDocument {
+  id: string;
+  doc_type: 'charter' | 'bylaws' | 'internal_rules' | 'amendment' | 'other';
+  title: string;
+  content: string;
+  version: string;
+  is_active: boolean;
+  effective_date?: string | null;
+  file?: string | null;
+  approved_by?: string | null;
+}
+
+export interface Election {
+  id: string;
+  cycle: string;
+  session?: string | null;
+  title: string;
+  method: 'secret' | 'open' | 'consensus' | 'designation' | 'other';
+  status: 'planned' | 'in_progress' | 'completed' | 'cancelled';
+  date?: string;
+  notes?: string;
+}
+
+export interface ElectionCandidate {
+  id: string;
+  election: string;
+  membership: string;
+  member_name?: string;
+  position: string;
+  position_name?: string;
+  votes_count: number;
+  is_elected: boolean;
+}
+
 export const governanceApi = {
   announcements: (params?: { priority?: string; audience?: string; active_only?: string }) =>
     api
@@ -91,4 +125,57 @@ export const governanceApi = {
 
   votePoll: (id: string, optionIds: string[]) =>
     api.post<Poll>(`/governance/polls/${id}/vote/`, { option_ids: optionIds }).then((r) => r.data),
+
+  // ---------- Bureau : sondages ----------
+  createPoll: (
+    data: Partial<Poll> & { options_input?: { label: string; display_order?: number }[] },
+  ) => api.post<Poll>('/governance/polls/', data).then((r) => r.data),
+  openPoll: (id: string) => api.post<Poll>(`/governance/polls/${id}/open/`).then((r) => r.data),
+  closePoll: (id: string) => api.post<Poll>(`/governance/polls/${id}/close/`).then((r) => r.data),
+
+  // ---------- Bureau : annonces ----------
+  createAnnouncement: (data: Partial<Announcement> | FormData) =>
+    api.post<Announcement>('/governance/announcements/', data).then((r) => r.data),
+  updateAnnouncement: (id: string, data: Partial<Announcement>) =>
+    api.patch<Announcement>(`/governance/announcements/${id}/`, data).then((r) => r.data),
+  removeAnnouncement: (id: string) =>
+    api.delete(`/governance/announcements/${id}/`).then((r) => r.data),
+
+  // ---------- Bureau : documents ----------
+  documents: (params?: { doc_type?: string; is_active?: boolean }) =>
+    api
+      .get<GovernanceDocument[] | Paginated<GovernanceDocument>>('/governance/documents/', { params })
+      .then((r) => unwrap(r.data)),
+  getDocument: (id: string) =>
+    api.get<GovernanceDocument>(`/governance/documents/${id}/`).then((r) => r.data),
+  createDocument: (data: Partial<GovernanceDocument> | FormData) =>
+    api.post<GovernanceDocument>('/governance/documents/', data).then((r) => r.data),
+  updateDocument: (id: string, data: Partial<GovernanceDocument>) =>
+    api.patch<GovernanceDocument>(`/governance/documents/${id}/`, data).then((r) => r.data),
+  removeDocument: (id: string) =>
+    api.delete(`/governance/documents/${id}/`).then((r) => r.data),
+
+  // ---------- Bureau : élections ----------
+  elections: (params?: { cycle?: string; status?: string }) =>
+    api
+      .get<Election[] | Paginated<Election>>('/governance/elections/', { params })
+      .then((r) => unwrap(r.data)),
+  getElection: (id: string) =>
+    api.get<Election>(`/governance/elections/${id}/`).then((r) => r.data),
+  createElection: (data: Partial<Election>) =>
+    api.post<Election>('/governance/elections/', data).then((r) => r.data),
+  updateElection: (id: string, data: Partial<Election>) =>
+    api.patch<Election>(`/governance/elections/${id}/`, data).then((r) => r.data),
+  removeElection: (id: string) =>
+    api.delete(`/governance/elections/${id}/`).then((r) => r.data),
+  candidates: (electionId?: string) =>
+    api
+      .get<ElectionCandidate[] | Paginated<ElectionCandidate>>('/governance/candidates/', {
+        params: electionId ? { election: electionId } : undefined,
+      })
+      .then((r) => unwrap(r.data)),
+  addCandidate: (data: { election: string; membership: string; position: string }) =>
+    api.post<ElectionCandidate>('/governance/candidates/', data).then((r) => r.data),
+  removeCandidate: (id: string) =>
+    api.delete(`/governance/candidates/${id}/`).then((r) => r.data),
 };

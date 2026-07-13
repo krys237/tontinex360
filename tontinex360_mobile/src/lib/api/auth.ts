@@ -6,6 +6,7 @@ import type {
   LoginRequest,
   RegisterRequest,
   Association,
+  AssociationSearchResult,
 } from '../types/auth';
 
 export const authApi = {
@@ -77,6 +78,12 @@ export const authApi = {
         subscription_status: string;
         trial_end: string | null;
       }>('/associations/associations/create/', data)
+      .then((r) => r.data),
+
+  /** Recherche publique d'associations (nom ou ville) — pour rejoindre. */
+  searchAssociations: (q: string) =>
+    api
+      .get<AssociationSearchResult[]>('/associations/associations/search/', { params: { q } })
       .then((r) => r.data),
 
   getAssociation: (slug: string) =>

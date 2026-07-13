@@ -27,11 +27,22 @@ export const api: AxiosInstance = axios.create({
 });
 
 // --- Request interceptor: attach auth + tenant headers ---
+// NOTE pagination : depuis la MAJ backend (common.pagination.StandardPagination),
+// TOUTES les listes DRF sont paginées (20/page par défaut, max 200). Sans
+// page_size, les écrans mobiles ne recevraient que 20 éléments et les totaux/KPIs
+// calculés côté client seraient faux. On force donc page_size=200 (le plafond
+// backend) sur les GET, sauf si l'appelant l'a déjà précisé. `unwrap()` continue
+// d'extraire `results`. Limite connue : > 200 éléments nécessiteraient une
+// vraie pagination/infinite-scroll (à traiter au cas par cas).
+const DEFAULT_PAGE_SIZE = 200;
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = tokenCache.getAccess();
   const slug = tokenCache.getSlug();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   if (slug) config.headers.set?.('X-Tenant', slug);
+  if ((config.method ?? 'get').toLowerCase() === 'get') {
+    config.params = { page_size: DEFAULT_PAGE_SIZE, ...(config.params ?? {}) };
+  }
   return config;
 });
 

@@ -1,7 +1,8 @@
 # Plan d'implémentation — Espace Bureau (TontineX360 Mobile)
 
-> Statut : **MVP (Phases 0 → 4) IMPLÉMENTÉ** ✅ — typecheck `tsc --noEmit` OK. Phases 5 → 8 à venir.
+> Statut : **TOUTES LES PHASES (0 → 8) IMPLÉMENTÉES** ✅ — typecheck `tsc --noEmit` OK.
 > Périmètre 1ʳᵉ livraison : **MVP = Phases 0 → 4** (fondations, dashboard, membres, approbations, finance).
+> Phases 5 → 8 livrées : cycles & séances, gouvernance, sanctions/wallets/proxies, paramètres + accès chat bureau.
 > Navigation : **BureauStack séparé** poussé depuis l'espace membre (Profil + Accueil), gated sur `isBureau`.
 > Phases 5 → 8 : roadmap décrite en fin de document, hors MVP.
 

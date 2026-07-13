@@ -15,6 +15,8 @@ export interface AppEvent {
   minutes?: string;
   attachments?: unknown[];
   audience_mode: 'all' | 'specific';
+  invitees?: string[];
+  invitee_names?: { id: string; name: string }[];
   invitees_count?: number;
   created_at?: string;
 }
@@ -33,6 +35,13 @@ export const eventsApi = {
     api.get<AppEvent[] | Paginated<AppEvent>>('/events/events/', { params }).then((r) => unwrap(r.data)),
 
   get: (id: string) => api.get<AppEvent>(`/events/events/${id}/`).then((r) => r.data),
+
+  // ---------- Bureau : gestion des événements ----------
+  create: (data: Partial<AppEvent>) =>
+    api.post<AppEvent>('/events/events/', data).then((r) => r.data),
+  update: (id: string, data: Partial<AppEvent>) =>
+    api.patch<AppEvent>(`/events/events/${id}/`, data).then((r) => r.data),
+  remove: (id: string) => api.delete(`/events/events/${id}/`).then((r) => r.data),
 
   attendances: (eventId: string) =>
     api

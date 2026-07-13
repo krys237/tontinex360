@@ -21,13 +21,12 @@ import {
   TextField,
   PrimaryButton,
   Divider,
-  InfoCard,
   Footer,
 } from '../../components/ui';
 import { loginWithPassword } from '../../lib/auth/session';
 import { colors } from '../../theme/colors';
 import { font } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
+import { spacing, radius } from '../../theme/spacing';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
@@ -104,16 +103,17 @@ export default function LoginScreen({ navigation }: Props) {
               </Text>
             </Text>
 
-            <View style={styles.info}>
-              <InfoCard
-                variant="green"
-                title="Architecture non-custodial"
-                icon={<ShieldCheck size={18} color={colors.primary} />}>
-                TontineX360 ne détient aucun fonds. Toutes les cotisations restent dans le
-                compte bancaire de votre tontine.
-              </InfoCard>
-            </View>
           </Card>
+
+          <View style={styles.nonCustodialBadge}>
+            <View style={styles.badgeHeader}>
+              <ShieldCheck size={16} color={colors.primary} />
+              <Text style={styles.badgeTitle}>Architecture non-custodial</Text>
+            </View>
+            <Text style={styles.badgeText}>
+              TontineX360 ne détient aucun fonds. Toutes les cotisations restent sécurisées sur le compte bancaire de votre tontine.
+            </Text>
+          </View>
 
           <View style={styles.footer}>
             <Footer />
@@ -133,6 +133,30 @@ const styles = StyleSheet.create({
   error: { color: colors.danger, marginBottom: 10, textAlign: 'center' },
   switchLine: { textAlign: 'center', color: colors.textMuted, fontSize: font.size.md },
   link: { color: colors.primary, fontWeight: font.bold },
-  info: { marginTop: spacing.xl },
+  nonCustodialBadge: {
+    marginTop: spacing.lg,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    alignItems: 'center',
+  },
+  badgeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: 4,
+  },
+  badgeTitle: {
+    fontSize: font.size.sm,
+    fontWeight: font.semibold,
+    color: colors.primary,
+  },
+  badgeText: {
+    fontSize: font.size.xs,
+    color: colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 16,
+  },
   footer: { marginTop: spacing.xl },
 });

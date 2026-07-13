@@ -135,9 +135,8 @@ export default function HomeScreen() {
   const nextSessionLabel = sessionsLoading
     ? 'Chargement…'
     : nextSession
-      ? `N°${nextSession.session_number} · ${formatDayMonth(nextSession.date)}${
-          nextSession.location ? ` · ${nextSession.location}` : ''
-        }`
+      ? `N°${nextSession.session_number} · ${formatDayMonth(nextSession.date)}${nextSession.location ? ` · ${nextSession.location}` : ''
+      }`
       : 'Aucune séance programmée';
 
   const recent = (activityQ.data ?? []).slice(0, 3);
@@ -165,7 +164,7 @@ export default function HomeScreen() {
 
           <View style={styles.topbarTitle}>
             <Text style={styles.topbarHello} numberOfLines={1}>
-              Bonjour {firstName} 👋
+              Bonjour {firstName}
             </Text>
             <Text style={styles.topbarAssoc} numberOfLines={1}>
               {association?.name ?? 'TontineX360'}
@@ -187,7 +186,7 @@ export default function HomeScreen() {
 
         {/* ---------- Hero ---------- */}
         <LinearGradient
-          colors={[colors.green[800], colors.green[500]]}
+          colors={[colors.primary, colors.primaryDark]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.hero}>
@@ -198,7 +197,7 @@ export default function HomeScreen() {
 
           <View style={styles.sessionPill}>
             <View style={styles.sessionIcon}>
-              <Ionicons name="calendar-outline" size={18} color={colors.white} />
+              <Ionicons name="calendar-outline" size={18} color={colors.primary} />
             </View>
             <View style={styles.flex}>
               <Text style={styles.sessionLabel}>Prochaine séance</Text>
@@ -291,7 +290,7 @@ export default function HomeScreen() {
           ) : (
             recent.map((n, i) => (
               <View key={n.id} style={[styles.activityRow, i > 0 && styles.activityDivider]}>
-                <IconBubble icon="notifications" tint={n.is_read ? 'primary' : 'lime'} size={32} />
+                <IconBubble icon={n.is_read ? 'notifications-outline' : 'notifications'} tint="white" size={32} />
                 <View style={styles.flex}>
                   <Text style={styles.activityTitle} numberOfLines={1}>
                     {n.title}
@@ -470,7 +469,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: 'rgba(255,255,255,0.22)',
+    backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -541,7 +540,7 @@ const styles = StyleSheet.create({
     width: '47%',
     flexGrow: 1,
     height: 130,
-    backgroundColor: colors.greenBg,
+    backgroundColor: colors.primary,
     borderRadius: radius.card,
     padding: spacing.md,
     justifyContent: 'space-between',
@@ -573,7 +572,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 11,
     fontWeight: font.semibold,
-    color: colors.text,
+    color: colors.white,
     lineHeight: 14,
   },
 

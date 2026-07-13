@@ -1,5 +1,19 @@
 // Ported from web front (src/lib/types/cycle.ts) — trimmed.
 export type CycleStatus = 'draft' | 'active' | 'completed' | 'cancelled';
+export type AttendanceStatus = 'present' | 'absent' | 'excused' | 'late' | 'represented';
+export type RecurrenceKind = 'none' | 'fixed_day_of_month' | 'nth_weekday' | 'every_weekday';
+
+export interface CycleTontineConfig {
+  id: string;
+  tontine_type: string;
+  tontine_name: string;
+  default_method: string;
+  default_method_display: string;
+  allow_override: boolean;
+  allowed_overrides: string[];
+  auction_premium_destination: string;
+  config: Record<string, any>;
+}
 
 export interface Cycle {
   id: string;
@@ -8,7 +22,27 @@ export interface Cycle {
   end_date?: string;
   status: CycleStatus;
   session_count: number;
+  session_frequency?: string;
+  default_session_day?: number;
+  default_session_time?: string;
+  default_session_location?: string;
+  tontine_configs?: CycleTontineConfig[];
+  recurrence_kind?: RecurrenceKind;
+  recurrence_nth?: number | null;
+  recurrence_weekday?: number | null;
+  recurrence_day_of_month?: number | null;
+  sessions_generated_at?: string | null;
   created_at: string;
+}
+
+export interface SessionAttendance {
+  id: string;
+  session: string;
+  membership: string;
+  member_name: string;
+  status: AttendanceStatus;
+  represented_by?: string | null;
+  notes?: string;
 }
 
 export type AuctionBidStatus = 'active' | 'won' | 'lost' | 'cancelled';

@@ -8,7 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { ArrowLeft, Building2 } from 'lucide-react-native';
+import { ArrowLeft, Building2, Info } from 'lucide-react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { WorkspaceStackParamList } from '../../navigation/types';
 import {
@@ -16,13 +16,12 @@ import {
   Card,
   TextField,
   PrimaryButton,
-  InfoCard,
 } from '../../components/ui';
 import { authApi } from '../../lib/api/auth';
 import { refreshWorkspace } from '../../lib/auth/session';
 import { colors } from '../../theme/colors';
 import { font } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
+import { spacing, radius } from '../../theme/spacing';
 
 type Props = NativeStackScreenProps<WorkspaceStackParamList, 'CreateAssociation'>;
 
@@ -164,12 +163,16 @@ export default function CreateAssociationScreen({ navigation }: Props) {
             </View>
           </Card>
 
-          <View style={styles.info}>
-            <InfoCard variant="blue" title="À noter">
-              {'• Vous serez automatiquement membre fondateur et président.\n'}
-              {'• Une période d\'essai gratuite est activée selon le plan par défaut.\n'}
-              {'• Les rôles et postes de bureau standards sont créés automatiquement.'}
-            </InfoCard>
+          <View style={styles.notesBadge}>
+            <View style={styles.badgeHeader}>
+              <Info size={16} color={colors.primary} />
+              <Text style={styles.badgeTitle}>À noter</Text>
+            </View>
+            <View style={styles.badgeBody}>
+              <Text style={styles.badgeText}>• Vous serez automatiquement membre fondateur et président.</Text>
+              <Text style={styles.badgeText}>• Une période d'essai gratuite est activée selon le plan par défaut.</Text>
+              <Text style={styles.badgeText}>• Les rôles et postes de bureau standards sont créés automatiquement.</Text>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -187,8 +190,10 @@ const styles = StyleSheet.create({
   iconCircle: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.green[100],
+    borderRadius: radius.md,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -199,5 +204,31 @@ const styles = StyleSheet.create({
   col: { flex: 1 },
   error: { color: colors.danger, marginBottom: 10 },
   cta: { marginTop: spacing.sm, alignSelf: 'flex-start', paddingHorizontal: 28 },
-  info: { marginTop: spacing.lg },
+  notesBadge: {
+    marginTop: spacing.lg,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: 'transparent',
+  },
+  badgeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  badgeTitle: {
+    fontSize: font.size.sm,
+    fontWeight: font.semibold,
+    color: colors.primary,
+  },
+  badgeBody: {
+    gap: 4,
+  },
+  badgeText: {
+    fontSize: font.size.xs,
+    color: colors.textMuted,
+    lineHeight: 16,
+  },
 });
