@@ -121,7 +121,7 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={styles.title}>Profil</Text>
-          <Pressable onPress={() => soon('Modifier mon profil')} hitSlop={8} style={styles.editBtn}>
+          <Pressable onPress={() => navigation.navigate('EditProfile')} hitSlop={8} style={styles.editBtn}>
             <Ionicons name="create-outline" size={20} color={colors.primary} />
           </Pressable>
         </View>
@@ -180,9 +180,9 @@ export default function ProfileScreen() {
         {/* Compte */}
         <SectionLabel>Compte</SectionLabel>
         <Card style={styles.card}>
-          <Row icon="create-outline" tint="white" label="Modifier mon profil" first onPress={() => soon('Modifier mon profil')} />
-          <Row icon="lock-closed" tint="white" label="Changer le mot de passe" onPress={() => soon('Changer le mot de passe')} />
-          <Row icon="shield-checkmark" tint="white" label="Sécurité & connexion" onPress={() => soon('Sécurité')} />
+          <Row icon="create-outline" tint="white" label="Modifier mon profil" first onPress={() => navigation.navigate('EditProfile')} />
+          <Row icon="lock-closed" tint="white" label="Changer le mot de passe" onPress={() => navigation.navigate('ChangePassword')} />
+          <Row icon="shield-checkmark" tint="white" label="Sécurité & connexion" onPress={() => navigation.navigate('Security')} />
         </Card>
 
         {/* Préférences */}

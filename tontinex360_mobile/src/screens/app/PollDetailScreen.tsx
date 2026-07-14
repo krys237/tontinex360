@@ -106,7 +106,7 @@ export default function PollDetailScreen() {
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Hero */}
-        <LinearGradient colors={[colors.greenBg, colors.greenBgDeep]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
+        <LinearGradient colors={[colors.primary, colors.green[600]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
           <View style={styles.heroTop}>
             <Text style={styles.kicker}>{open ? 'VOTE EN COURS' : 'VOTE CLÔTURÉ'}</Text>
             {open && remaining ? <Text style={styles.kickerRight}>Se termine dans {remaining}</Text> : null}
@@ -116,13 +116,13 @@ export default function PollDetailScreen() {
 
           <View style={styles.statsRow}>
             <View style={styles.stat}>
-              <Ionicons name="people" size={18} color={colors.primary} />
+              <Ionicons name="people" size={18} color={colors.white} />
               <Text style={styles.statValue}>{poll.total_votes ?? '—'}</Text>
               <Text style={styles.statLabel}>votes</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.stat}>
-              <Ionicons name={open ? 'lock-open' : 'lock-closed'} size={18} color={colors.primary} />
+              <Ionicons name={open ? 'lock-open' : 'lock-closed'} size={18} color={colors.white} />
               <Text style={styles.statValue}>{statusLabel}</Text>
               <Text style={styles.statLabel}>statut</Text>
             </View>
@@ -209,17 +209,17 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
   empty: { color: colors.textMuted, fontSize: font.size.md },
 
-  hero: { borderRadius: radius.hero, padding: 18, ...cardShadow },
+  hero: { borderRadius: radius.hero, padding: 20, ...cardShadow },
   heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  kicker: { fontSize: font.size.xs, fontWeight: font.bold, color: colors.green[600], letterSpacing: 0.5 },
-  kickerRight: { fontSize: font.size.xs, color: colors.green[900], fontWeight: font.semibold },
-  title: { fontSize: font.size.lg, fontWeight: font.bold, color: colors.primary, marginTop: 8, lineHeight: font.size.lg * 1.25 },
-  proposer: { fontSize: font.size.sm, color: colors.textMuted, marginTop: 4 },
+  kicker: { fontSize: font.size.xs, fontWeight: font.bold, color: 'rgba(255, 255, 255, 0.85)', letterSpacing: 0.5 },
+  kickerRight: { fontSize: font.size.xs, color: colors.white, fontWeight: font.semibold },
+  title: { fontSize: font.size.lg, fontWeight: font.bold, color: colors.white, marginTop: 8, lineHeight: font.size.lg * 1.25 },
+  proposer: { fontSize: font.size.sm, color: 'rgba(255, 255, 255, 0.75)', marginTop: 4 },
   statsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 16 },
   stat: { flex: 1, alignItems: 'center', gap: 2 },
-  statDivider: { width: 1, alignSelf: 'stretch', backgroundColor: colors.green[400], marginVertical: 4 },
-  statValue: { fontSize: font.size.md, fontWeight: font.bold, color: colors.text },
-  statLabel: { fontSize: font.size.xs, color: colors.textMuted },
+  statDivider: { width: 1, alignSelf: 'stretch', backgroundColor: 'rgba(255, 255, 255, 0.25)', marginVertical: 4 },
+  statValue: { fontSize: font.size.md, fontWeight: font.bold, color: colors.white },
+  statLabel: { fontSize: font.size.xs, color: 'rgba(255, 255, 255, 0.8)' },
 
   card: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: 16, borderWidth: 1, borderColor: colors.border, ...cardShadow },
   cardTitle: { fontSize: font.size.md, fontWeight: font.bold, color: colors.text, marginBottom: 8 },
@@ -228,17 +228,17 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: font.size.md, fontWeight: font.bold, color: colors.text },
 
   option: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: 14, borderWidth: 1, borderColor: colors.border, gap: 8 },
-  optionSel: { borderColor: colors.green[500], backgroundColor: colors.greenBg },
+  optionSel: { borderColor: colors.primary, backgroundColor: colors.greenBg },
   optionDisabled: { opacity: 0.95 },
   optionTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   tick: { width: 22, height: 22, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   tickRound: { borderRadius: 11 },
   tickSquare: { borderRadius: 6 },
-  tickSel: { backgroundColor: colors.green[500], borderColor: colors.green[500] },
+  tickSel: { backgroundColor: colors.primary, borderColor: colors.primary },
   optionLabel: { flex: 1, fontSize: font.size.md, fontWeight: font.semibold, color: colors.text },
   optionPct: { fontSize: font.size.md, fontWeight: font.bold, color: colors.primary },
   barTrack: { height: 8, borderRadius: 999, backgroundColor: colors.surfaceMuted, overflow: 'hidden' },
-  barFill: { height: 8, borderRadius: 999, backgroundColor: colors.green[500] },
+  barFill: { height: 8, borderRadius: 999, backgroundColor: colors.primary },
   optionCount: { fontSize: font.size.xs, color: colors.textMuted },
 
   hidden: { fontSize: font.size.sm, color: colors.textMuted, fontStyle: 'italic', textAlign: 'center', marginTop: 4 },

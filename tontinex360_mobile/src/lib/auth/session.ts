@@ -7,6 +7,7 @@ import { authApi } from '../api/auth';
 import { membersApi } from '../api/members';
 import { useAuthStore } from '../stores/auth-store';
 import { saveTokens, tokenCache } from '../storage/secure-storage';
+import { queryClient } from '../query-client';
 import type { Association } from '../types/auth';
 
 export type SessionStatus = 'authenticated' | 'unauthenticated';
@@ -83,7 +84,12 @@ export async function bootstrapSession(): Promise<SessionStatus> {
 /** Switch the active association (multi-tenant). */
 export async function switchAssociation(assoc: Association): Promise<void> {
   await authApi.selectAssociation(assoc.slug);
+  // setActiveAssociation met d'abord à jour le slug X-Tenant : la purge doit
+  // venir APRÈS, sinon les refetch déclenchés repartiraient sur l'ancien tenant.
   useAuthStore.getState().setActiveAssociation(assoc);
+  // Le tenant voyage dans un header, pas dans les clés de requête : sans purge,
+  // les écrans affichent les données de l'association précédente.
+  queryClient.clear();
   await resolveCurrentMembership();
 }
 

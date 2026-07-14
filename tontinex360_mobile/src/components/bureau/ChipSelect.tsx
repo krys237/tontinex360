@@ -32,6 +32,35 @@ export default function ChipSelect<T extends string | number>({
   );
 }
 
+/** Même pilules, mais sélection multiple (toggle). */
+export function MultiChipSelect<T extends string | number>({
+  options,
+  values,
+  onChange,
+  style,
+}: {
+  options: ChipOption<T>[];
+  values: T[];
+  onChange: (next: T[]) => void;
+  style?: ViewStyle;
+}) {
+  const toggle = (k: T) =>
+    onChange(values.includes(k) ? values.filter((v) => v !== k) : [...values, k]);
+
+  return (
+    <View style={[styles.wrap, style]}>
+      {options.map((o) => {
+        const on = values.includes(o.key);
+        return (
+          <Pressable key={String(o.key)} onPress={() => toggle(o.key)} style={[styles.chip, on && styles.chipOn]}>
+            <Text style={[styles.chipText, on && styles.chipTextOn]}>{o.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: 14 },
   chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.pill, backgroundColor: colors.surfaceAlt },

@@ -43,9 +43,10 @@ export default function LoginScreen({ navigation }: Props) {
     try {
       await loginWithPassword(telephone, password);
     } catch (e: any) {
-      const detail = JSON.stringify(e?.response?.data ?? '');
-      if (/otp|inactif|not active|inactive/i.test(detail)) {
-        navigation.navigate('VerifyOtp', { telephone });
+      // Compte non activé : le backend répond 403 + code structuré, et a déjà
+      // renvoyé un OTP — on redirige directement vers la vérification.
+      if (e?.response?.status === 403 && e?.response?.data?.code === 'account_not_activated') {
+        navigation.navigate('VerifyOtp', { telephone: e.response.data.telephone ?? telephone });
       } else {
         setError('Connexion échouée. Vérifiez le numéro et le mot de passe.');
       }
@@ -92,6 +93,13 @@ export default function LoginScreen({ navigation }: Props) {
                 onPress={onSubmit}
                 style={styles.cta}
               />
+
+              <Pressable
+                onPress={() => navigation.navigate('ForgotPassword')}
+                hitSlop={8}
+                style={styles.forgotWrap}>
+                <Text style={styles.forgotLink}>Mot de passe oublié ?</Text>
+              </Pressable>
             </View>
 
             <Divider label="OU" />
@@ -131,6 +139,8 @@ const styles = StyleSheet.create({
   form: { marginTop: spacing.x2 },
   cta: { marginTop: spacing.sm },
   error: { color: colors.danger, marginBottom: 10, textAlign: 'center' },
+  forgotWrap: { marginTop: spacing.md, marginBottom: spacing.xs, alignSelf: 'center' },
+  forgotLink: { color: colors.primary, fontWeight: font.semibold, fontSize: font.size.sm },
   switchLine: { textAlign: 'center', color: colors.textMuted, fontSize: font.size.md },
   link: { color: colors.primary, fontWeight: font.bold },
   nonCustodialBadge: {

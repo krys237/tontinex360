@@ -20,6 +20,10 @@ export const authApi = {
   refreshToken: (refresh: string) =>
     api.post<{ access: string }>('/auth/token/refresh/', { refresh }).then((r) => r.data),
 
+  /**
+   * Vérifie un code OTP. Sert à deux choses côté backend : valider le code ET
+   * activer le compte (`is_active = True`). Ne change PAS le mot de passe.
+   */
   validateOtp: (data: { telephone: string; otp: string }) =>
     api.post('/auth/valid-otp/', data).then((r) => r.data),
 
@@ -35,7 +39,19 @@ export const authApi = {
       })
       .then((r) => r.data),
 
-  // Note: backend route really is "change-fogot-password" (typo kept on purpose).
+  /**
+   * Réinitialise le mot de passe d'un compte à partir de son seul numéro.
+   *
+   * ⚠️ SÉCURITÉ — le backend (`ChangePasswordFogot`) ne vérifie AUCUN OTP et
+   * n'exige aucune authentification : ce endpoint réécrit le mot de passe de
+   * n'importe quel compte dont on connaît le téléphone. Le parcours OTP du
+   * ForgotPasswordScreen est donc une garantie côté client uniquement.
+   * Tant que le backend n'exige pas un OTP consommé (champs `forgot` /
+   * `forgot_logged` de PhoneOtpUser, prévus mais inutilisés), la faille reste
+   * exploitable en appelant l'API directement.
+   *
+   * Note : la route backend s'écrit bien "change-fogot-password" (typo assumée).
+   */
   forgotPassword: (data: { telephone: string; password: string }) =>
     api.post('/auth/change-fogot-password/', data).then((r) => r.data),
 

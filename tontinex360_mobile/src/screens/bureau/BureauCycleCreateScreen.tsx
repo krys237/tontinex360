@@ -5,11 +5,25 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { Card, TextField, PrimaryButton } from '../../components/ui';
+import { Card, TextField, PrimaryButton, OutlineButton } from '../../components/ui';
+import ChipSelect, { MultiChipSelect } from '../../components/bureau/ChipSelect';
 import { DateField, TimeField } from '../../components/bureau/DateTimeFields';
 import type { BureauStackParamList } from '../../navigation/types';
 import { cyclesApi } from '../../lib/api/cycles';
 import type { Cycle, RecurrenceKind } from '../../lib/types/cycle';
+import {
+  RECURRENCES,
+  RECURRENCE_NTH,
+  SESSION_FREQUENCIES,
+  WEEKDAYS,
+  weekdayLabel,
+} from '../../lib/bureau/cycle-labels';
+import {
+  computeSessionDates,
+  formatDateFR,
+  parseISODate,
+  toISODate,
+} from '../../lib/bureau/recurrence-preview';
 import { colors } from '../../theme/colors';
 import { font } from '../../theme/typography';
 import { radius, spacing } from '../../theme/spacing';
@@ -18,64 +32,29 @@ type Nav = NativeStackNavigationProp<BureauStackParamList, 'BureauCycleCreate'>;
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^\d{2}:\d{2}$/;
-
-const FREQUENCIES: { key: string; label: string }[] = [
-  { key: 'weekly', label: 'Hebdo' },
-  { key: 'biweekly', label: 'Bimensuel' },
-  { key: 'monthly', label: 'Mensuel' },
-  { key: 'quarterly', label: 'Trimestriel' },
-  { key: 'custom', label: 'Personnalisé' },
-];
+const PREVIEW_LIMIT = 12;
 
 const STATUSES: { key: string; label: string }[] = [
   { key: 'draft', label: 'Brouillon' },
   { key: 'active', label: 'Activer maintenant' },
 ];
 
-const WEEKDAYS: { key: number; label: string }[] = [
-  { key: 0, label: 'Lun' },
-  { key: 1, label: 'Mar' },
-  { key: 2, label: 'Mer' },
-  { key: 3, label: 'Jeu' },
-  { key: 4, label: 'Ven' },
-  { key: 5, label: 'Sam' },
-  { key: 6, label: 'Dim' },
-];
-
-const RECURRENCES: { key: RecurrenceKind; label: string }[] = [
-  { key: 'none', label: 'Aucun (séances manuelles)' },
-  { key: 'fixed_day_of_month', label: 'Jour fixe du mois' },
-  { key: 'nth_weekday', label: 'Nième jour de semaine' },
-  { key: 'every_weekday', label: 'Chaque semaine' },
-];
+/** Modes où le jour de semaine unique ci-dessus pilote la récurrence. */
+const USES_SINGLE_WEEKDAY: RecurrenceKind[] = ['nth_weekday', 'every_weekday'];
+/** Modes où l'utilisateur choisit plusieurs jours + un intervalle. */
+const USES_MULTI_WEEKDAYS: RecurrenceKind[] = ['weekly_multiple', 'daily'];
 
 function errMsg(e: any): string {
   const d = e?.response?.data;
   if (typeof d === 'string') return d;
-  return d?.detail ?? d?.error ?? (d ? JSON.stringify(d) : 'Création impossible pour le moment.');
-}
-
-function Chips<T extends string | number>({
-  options,
-  value,
-  onChange,
-}: {
-  options: { key: T; label: string }[];
-  value: T;
-  onChange: (k: T) => void;
-}) {
-  return (
-    <View style={styles.chips}>
-      {options.map((o) => {
-        const on = o.key === value;
-        return (
-          <Pressable key={String(o.key)} onPress={() => onChange(o.key)} style={[styles.chip, on && styles.chipOn]}>
-            <Text style={[styles.chipText, on && styles.chipTextOn]}>{o.label}</Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
+  if (d && typeof d === 'object') {
+    // DRF renvoie { champ: ["message"] } — on remonte le 1er message lisible.
+    const first = Object.values(d)[0];
+    if (Array.isArray(first) && typeof first[0] === 'string') return first[0];
+    if (typeof d.detail === 'string') return d.detail;
+    if (typeof d.error === 'string') return d.error;
+  }
+  return 'Création impossible pour le moment.';
 }
 
 export default function BureauCycleCreateScreen() {
@@ -93,31 +72,83 @@ export default function BureauCycleCreateScreen() {
   const [recurrence, setRecurrence] = useState<RecurrenceKind>('none');
   const [nth, setNth] = useState('1');
   const [dayOfMonth, setDayOfMonth] = useState('15');
+  // Modes flexibles
+  const [weekdays, setWeekdays] = useState<number[]>([]);
+  const [interval, setInterval] = useState('1');
+  const [customDates, setCustomDates] = useState<string[]>([]);
+  const [draftDate, setDraftDate] = useState('');
+
+  const intervalNum = Math.max(1, Number(interval) || 1);
+
+  const buildPayload = (): Partial<Cycle> => {
+    const payload: Partial<Cycle> = {
+      name: name.trim(),
+      start_date: startDate.trim(),
+      status: status as Cycle['status'],
+      session_frequency: frequency,
+      default_session_day: weekday,
+      default_session_location: location.trim() || undefined,
+      recurrence_kind: recurrence,
+    };
+    if (endDate.trim()) payload.end_date = endDate.trim();
+    if (TIME_RE.test(time.trim())) payload.default_session_time = time.trim();
+
+    if (recurrence === 'fixed_day_of_month') {
+      payload.recurrence_day_of_month = Number(dayOfMonth) || 1;
+    } else if (recurrence === 'nth_weekday') {
+      payload.recurrence_nth = Number(nth) || 1;
+      payload.recurrence_weekday = weekday;
+    } else if (recurrence === 'every_weekday') {
+      payload.recurrence_weekday = weekday;
+    } else if (recurrence === 'weekly_multiple' || recurrence === 'daily') {
+      payload.recurrence_weekdays = [...weekdays].sort((a, b) => a - b);
+      payload.recurrence_interval = intervalNum;
+    } else if (recurrence === 'custom_dates') {
+      payload.recurrence_custom_dates = [...customDates].sort();
+    }
+    return payload;
+  };
+
+  // Aperçu calculé localement (le cycle n'existe pas encore côté serveur).
+  const preview = useMemo(
+    () =>
+      computeSessionDates(
+        {
+          start_date: startDate.trim(),
+          end_date: endDate.trim() || undefined,
+          session_frequency: frequency,
+          recurrence_kind: recurrence,
+          recurrence_nth: Number(nth) || 1,
+          recurrence_weekday: weekday,
+          recurrence_day_of_month: Number(dayOfMonth) || 1,
+          recurrence_weekdays: weekdays,
+          recurrence_custom_dates: customDates,
+          recurrence_interval: intervalNum,
+        },
+        PREVIEW_LIMIT,
+      ),
+    [
+      startDate, endDate, frequency, recurrence, nth, weekday,
+      dayOfMonth, weekdays, customDates, intervalNum,
+    ],
+  );
+
+  const addDraftDate = () => {
+    const d = draftDate.trim();
+    if (!parseISODate(d)) {
+      Alert.alert('Date invalide', 'Utilise le format AAAA-MM-JJ (ex : 2026-02-15).');
+      return;
+    }
+    if (customDates.includes(d)) {
+      Alert.alert('Date déjà ajoutée', formatDateFR(parseISODate(d)!));
+      return;
+    }
+    setCustomDates((prev) => [...prev, d].sort());
+    setDraftDate('');
+  };
 
   const createMut = useMutation({
-    mutationFn: () => {
-      const payload: Partial<Cycle> = {
-        name: name.trim(),
-        start_date: startDate.trim(),
-        status: status as Cycle['status'],
-        session_frequency: frequency,
-        default_session_day: weekday,
-        default_session_location: location.trim() || undefined,
-        recurrence_kind: recurrence,
-      };
-      if (endDate.trim()) payload.end_date = endDate.trim();
-      if (TIME_RE.test(time.trim())) payload.default_session_time = time.trim();
-      // Champs de récurrence selon le pattern choisi
-      if (recurrence === 'fixed_day_of_month') {
-        payload.recurrence_day_of_month = Number(dayOfMonth) || 1;
-      } else if (recurrence === 'nth_weekday') {
-        payload.recurrence_nth = Number(nth) || 1;
-        payload.recurrence_weekday = weekday;
-      } else if (recurrence === 'every_weekday') {
-        payload.recurrence_weekday = weekday;
-      }
-      return cyclesApi.create(payload);
-    },
+    mutationFn: () => cyclesApi.create(buildPayload()),
     onSuccess: (c) => {
       qc.invalidateQueries({ queryKey: ['bureau', 'cycles'] });
       Alert.alert('Cycle créé', `« ${c.name} » a été créé.`, [
@@ -127,10 +158,26 @@ export default function BureauCycleCreateScreen() {
     onError: (e) => Alert.alert('Erreur', errMsg(e)),
   });
 
-  const canSubmit = useMemo(
-    () => !!name.trim() && DATE_RE.test(startDate.trim()) && (!endDate.trim() || DATE_RE.test(endDate.trim())),
-    [name, startDate, endDate],
-  );
+  // Règles alignées sur `CycleSerializer.validate` côté backend.
+  const recurrenceError = useMemo(() => {
+    if (recurrence === 'weekly_multiple' && weekdays.length === 0) {
+      return 'Sélectionne au moins 1 jour de la semaine.';
+    }
+    if (recurrence === 'custom_dates' && customDates.length === 0) {
+      return 'Ajoute au moins 1 date.';
+    }
+    return null;
+  }, [recurrence, weekdays, customDates]);
+
+  const canSubmit =
+    !!name.trim() &&
+    DATE_RE.test(startDate.trim()) &&
+    (!endDate.trim() || DATE_RE.test(endDate.trim())) &&
+    !recurrenceError;
+
+  const showsPreview = recurrence !== 'none' && preview.length > 0;
+  // `daily` sans date de fin → horizon d'un an, soit ~365 séances générées.
+  const unboundedDaily = recurrence === 'daily' && !endDate.trim();
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -143,13 +190,13 @@ export default function BureauCycleCreateScreen() {
           </View>
 
           <Text style={styles.label}>Fréquence</Text>
-          <Chips options={FREQUENCIES} value={frequency} onChange={setFrequency} />
+          <ChipSelect options={SESSION_FREQUENCIES} value={frequency} onChange={setFrequency} />
 
           <Text style={styles.label}>Statut</Text>
-          <Chips options={STATUSES} value={status} onChange={setStatus} />
+          <ChipSelect options={STATUSES} value={status} onChange={setStatus} />
 
           <Text style={styles.label}>Jour de la semaine</Text>
-          <Chips options={WEEKDAYS} value={weekday} onChange={setWeekday} />
+          <ChipSelect options={WEEKDAYS} value={weekday} onChange={setWeekday} />
 
           <View style={styles.row2}>
             <TimeField containerStyle={styles.flex} label="Heure habituelle" value={time} onChangeText={setTime} />
@@ -159,37 +206,100 @@ export default function BureauCycleCreateScreen() {
           {/* Pattern d'auto-génération — bloc doré */}
           <View style={styles.patternBox}>
             <Text style={styles.patternTitle}>Pattern d'auto-génération des séances</Text>
-            <Chips options={RECURRENCES} value={recurrence} onChange={setRecurrence} />
+            <ChipSelect options={RECURRENCES} value={recurrence} onChange={setRecurrence} />
 
             {recurrence === 'fixed_day_of_month' ? (
               <TextField label="Jour du mois (1-31)" value={dayOfMonth} onChangeText={setDayOfMonth} placeholder="15" keyboardType="numeric" />
             ) : null}
+
             {recurrence === 'nth_weekday' ? (
               <>
                 <Text style={styles.label}>Quelle occurrence ?</Text>
-                <Chips
-                  options={[
-                    { key: '1', label: '1er' },
-                    { key: '2', label: '2e' },
-                    { key: '3', label: '3e' },
-                    { key: '4', label: '4e' },
-                    { key: '5', label: 'Dernier' },
-                  ]}
-                  value={nth}
-                  onChange={setNth}
-                />
-                <Text style={styles.patternHint}>Le jour de semaine sélectionné ci-dessus sera utilisé.</Text>
+                <ChipSelect options={RECURRENCE_NTH} value={nth} onChange={setNth} />
               </>
             ) : null}
-            {recurrence === 'every_weekday' ? (
-              <Text style={styles.patternHint}>Une séance chaque semaine, le jour de semaine sélectionné ci-dessus.</Text>
+
+            {USES_MULTI_WEEKDAYS.includes(recurrence) ? (
+              <>
+                <Text style={styles.label}>
+                  {recurrence === 'daily' ? 'Jours concernés (vide = tous)' : 'Jours de séance *'}
+                </Text>
+                <MultiChipSelect options={WEEKDAYS} values={weekdays} onChange={setWeekdays} />
+                <TextField
+                  label={recurrence === 'daily' ? 'Une séance tous les N jours' : 'Une fois toutes les N semaines'}
+                  value={interval}
+                  onChangeText={setInterval}
+                  placeholder="1"
+                  keyboardType="numeric"
+                  helper={
+                    recurrence === 'daily'
+                      ? '1 = chaque jour, 2 = un jour sur deux…'
+                      : '1 = chaque semaine, 2 = une semaine sur deux…'
+                  }
+                />
+              </>
             ) : null}
+
+            {recurrence === 'custom_dates' ? (
+              <>
+                <Text style={styles.label}>Dates des séances *</Text>
+                <View style={styles.row2}>
+                  <DateField containerStyle={styles.flex} label="Ajouter une date" value={draftDate} onChangeText={setDraftDate} />
+                  <OutlineButton title="Ajouter" onPress={addDraftDate} style={styles.addBtn} />
+                </View>
+                {customDates.length ? (
+                  <View style={styles.dateList}>
+                    {customDates.map((d) => (
+                      <Pressable key={d} onPress={() => setCustomDates((p) => p.filter((x) => x !== d))} style={styles.dateChip}>
+                        <Text style={styles.dateChipText}>{formatDateFR(parseISODate(d)!)}</Text>
+                        <Text style={styles.dateChipX}>✕</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : null}
+                <Text style={styles.patternHint}>
+                  {customDates.length
+                    ? `${customDates.length} date${customDates.length > 1 ? 's' : ''} — touche une date pour la retirer.`
+                    : 'Les dates hors de la période du cycle seront ignorées.'}
+                </Text>
+              </>
+            ) : null}
+
+            {USES_SINGLE_WEEKDAY.includes(recurrence) ? (
+              <Text style={styles.patternHint}>
+                Le jour sélectionné ci-dessus ({weekdayLabel(weekday)}) sera utilisé.
+              </Text>
+            ) : null}
+
+            {recurrenceError ? <Text style={styles.patternError}>{recurrenceError}</Text> : null}
+
+            {unboundedDaily ? (
+              <Text style={styles.patternWarn}>
+                Sans date de fin, l'horizon est d'un an — cela peut générer des centaines de séances.
+              </Text>
+            ) : null}
+
             {recurrence !== 'none' ? (
               <Text style={styles.patternHint}>
                 Les séances seront générées automatiquement à l'activation du cycle.
               </Text>
             ) : null}
           </View>
+
+          {/* Aperçu des prochaines séances */}
+          {showsPreview ? (
+            <View style={styles.previewBox}>
+              <Text style={styles.previewTitle}>Prochaines séances</Text>
+              {preview.map((d) => (
+                <Text key={toISODate(d)} style={styles.previewItem}>
+                  • {formatDateFR(d)}
+                </Text>
+              ))}
+              {preview.length === PREVIEW_LIMIT ? (
+                <Text style={styles.previewMore}>… aperçu limité aux {PREVIEW_LIMIT} premières.</Text>
+              ) : null}
+            </View>
+          ) : null}
 
           <PrimaryButton
             title="Créer le cycle"
@@ -211,12 +321,33 @@ const styles = StyleSheet.create({
   card: { borderRadius: radius.lg },
   row2: { flexDirection: 'row', gap: spacing.sm },
   label: { fontSize: font.size.md, fontWeight: font.semibold, color: colors.text, marginBottom: 8 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: 14 },
-  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.pill, backgroundColor: colors.surfaceAlt },
-  chipOn: { backgroundColor: colors.primary },
-  chipText: { fontSize: font.size.sm, fontWeight: font.semibold, color: colors.textMuted },
-  chipTextOn: { color: colors.white },
+  addBtn: { alignSelf: 'flex-end', marginBottom: 14 },
+  dateList: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.sm },
+  dateChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: radius.pill,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.gold.beige,
+  },
+  dateChipText: { fontSize: font.size.sm, fontWeight: font.semibold, color: '#7A5B10' },
+  dateChipX: { fontSize: font.size.xs, color: '#8A6D1E' },
   patternBox: { backgroundColor: colors.goldSoft, borderWidth: 1, borderColor: colors.gold.beige, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm },
   patternTitle: { fontSize: font.size.sm, fontWeight: font.bold, color: '#7A5B10', marginBottom: spacing.sm },
   patternHint: { fontSize: font.size.xs, color: '#8A6D1E', marginTop: 2 },
+  patternWarn: { fontSize: font.size.xs, fontWeight: font.semibold, color: '#8A6D1E', marginTop: 6 },
+  patternError: { fontSize: font.size.xs, fontWeight: font.semibold, color: colors.danger, marginTop: 6 },
+  previewBox: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  previewTitle: { fontSize: font.size.sm, fontWeight: font.bold, color: colors.text, marginBottom: 6 },
+  previewItem: { fontSize: font.size.sm, color: colors.textMuted, lineHeight: 22 },
+  previewMore: { fontSize: font.size.xs, color: colors.textMuted, marginTop: 4, fontStyle: 'italic' },
 });

@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { User, Association } from '../types/auth';
 import type { Membership } from '../types/member';
 import { setActiveSlug, clearAuth } from '../storage/secure-storage';
+import { queryClient } from '../query-client';
 
 interface AuthState {
   user: User | null;
@@ -51,6 +52,11 @@ export const useAuthStore = create<AuthState>()(
           activeAssociation: null,
           currentMembership: null,
         });
+        // `user: null` bascule RootNavigator sur AuthStack et démonte AppStack ;
+        // on purge ensuite le cache React Query, sinon les données du compte
+        // précédent (clés non scopées par user) seraient resservies au suivant
+        // le temps du refetch — et indéfiniment si celui-ci échoue.
+        queryClient.clear();
       },
     }),
     {

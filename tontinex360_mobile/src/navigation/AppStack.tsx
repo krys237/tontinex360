@@ -4,6 +4,9 @@ import type { AppStackParamList } from './types';
 import AppTabs from './AppTabs';
 import BureauStack from './BureauStack';
 import NotificationsScreen from '../screens/app/NotificationsScreen';
+import EditProfileScreen from '../screens/app/EditProfileScreen';
+import ChangePasswordScreen from '../screens/app/ChangePasswordScreen';
+import SecurityScreen from '../screens/app/SecurityScreen';
 import AnnouncementDetailScreen from '../screens/app/AnnouncementDetailScreen';
 import EventDetailScreen from '../screens/app/EventDetailScreen';
 import SessionDetailScreen from '../screens/app/SessionDetailScreen';
@@ -37,6 +40,9 @@ export default function AppStack() {
       <Stack.Screen name="Tabs" component={AppTabs} options={{ headerShown: false }} />
       <Stack.Screen name="Bureau" component={BureauStack} options={{ headerShown: false }} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notifications', ...detailHeader }} />
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Modifier mon profil', ...detailHeader }} />
+      <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ title: 'Changer le mot de passe', ...detailHeader }} />
+      <Stack.Screen name="Security" component={SecurityScreen} options={{ title: 'Sécurité & connexion', ...detailHeader }} />
       <Stack.Screen name="AnnouncementDetail" component={AnnouncementDetailScreen} options={{ title: 'Annonce', ...detailHeader }} />
       <Stack.Screen name="EventDetail" component={EventDetailScreen} options={{ title: 'Événement', ...detailHeader }} />
       <Stack.Screen name="SessionDetail" component={SessionDetailScreen} options={{ title: 'Séance', ...detailHeader }} />

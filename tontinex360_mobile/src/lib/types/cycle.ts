@@ -1,7 +1,14 @@
 // Ported from web front (src/lib/types/cycle.ts) — trimmed.
 export type CycleStatus = 'draft' | 'active' | 'completed' | 'cancelled';
 export type AttendanceStatus = 'present' | 'absent' | 'excused' | 'late' | 'represented';
-export type RecurrenceKind = 'none' | 'fixed_day_of_month' | 'nth_weekday' | 'every_weekday';
+export type RecurrenceKind =
+  | 'none'
+  | 'fixed_day_of_month'
+  | 'nth_weekday'
+  | 'every_weekday'
+  | 'weekly_multiple'
+  | 'daily'
+  | 'custom_dates';
 
 export interface CycleTontineConfig {
   id: string;
@@ -31,6 +38,14 @@ export interface Cycle {
   recurrence_nth?: number | null;
   recurrence_weekday?: number | null;
   recurrence_day_of_month?: number | null;
+  /** `weekly_multiple` / `daily` : jours de semaine, 0=lundi … 6=dimanche. */
+  recurrence_weekdays?: number[];
+  /** `custom_dates` : dates ISO explicites (YYYY-MM-DD). */
+  recurrence_custom_dates?: string[];
+  /** `weekly_multiple` : pas en semaines. `daily` : pas en jours. */
+  recurrence_interval?: number;
+  /** Lecture seule : 12 prochaines dates calculées par le serveur. */
+  preview_dates?: string[];
   sessions_generated_at?: string | null;
   created_at: string;
 }
@@ -53,8 +68,27 @@ export interface AuctionBid {
   membership: string;
   member_name?: string;
   bid_amount: number | string;
+  shares_requested?: number | string;
+  target_lot?: number | string;
   status: AuctionBidStatus;
   resulting_payout?: string | null;
+  created_at: string;
+}
+
+export interface SessionPot {
+  id: string;
+  session: string;
+  tontine_type: string;
+  tontine_name: string;
+  total_collected: number | string;
+  carry_over_in: number | string;
+  auction_premium_in: number | string;
+  total_available: number | string;
+  total_distributed: number | string;
+  remainder: number | string;
+  effective_method: string;
+  method_display: string;
+  is_closed: boolean;
   created_at: string;
 }
 

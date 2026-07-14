@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -34,19 +34,19 @@ function frDate(dateStr?: string | null): string {
   return `${Number(m[3])} ${MONTHS_FR[Number(m[2]) - 1] ?? ''} ${m[1]}`;
 }
 
-const WORKFLOW: { icon: IoniconName; title: string; desc: string }[] = [
-  { icon: 'paper-plane-outline', title: 'Création', desc: 'Le membre principal crée la procuration officielle.' },
-  { icon: 'shield-checkmark-outline', title: 'Validation', desc: 'Le bureau vérifie et approuve la délégation.' },
-  { icon: 'person-add-outline', title: 'Représentation', desc: 'Le proxy collecte et représente pendant la séance.' },
-  { icon: 'checkmark-circle-outline', title: 'Consommée', desc: 'La procuration est utilisée automatiquement.' },
+const WORKFLOW: { icon: IoniconName; title: string }[] = [
+  { icon: 'paper-plane-outline', title: 'Création' },
+  { icon: 'shield-checkmark-outline', title: 'Validation' },
+  { icon: 'person-add-outline', title: 'Délégation' },
+  { icon: 'checkmark-circle-outline', title: 'Consommée' },
 ];
 
-const STATUS: Record<ProxyStatus, { label: string; bg: string; fg: string }> = {
-  pending: { label: 'En attente', bg: colors.goldSoft, fg: colors.goldAccent },
-  approved: { label: 'Approuvée', bg: colors.greenBg, fg: colors.primary },
-  rejected: { label: 'Refusée', bg: colors.dangerSoft, fg: colors.danger },
-  used: { label: 'Consommée', bg: colors.tintBlueBg, fg: colors.info },
-  cancelled: { label: 'Annulée', bg: colors.surfaceAlt, fg: colors.textMuted },
+const STATUS: Record<ProxyStatus, { label: string; bg: string; fg: string; icon: string }> = {
+  pending: { label: 'En attente', bg: colors.goldSoft, fg: colors.goldAccent, icon: 'time-outline' },
+  approved: { label: 'Approuvée', bg: colors.greenBg, fg: colors.primary, icon: 'checkmark-circle-outline' },
+  rejected: { label: 'Refusée', bg: colors.dangerSoft, fg: colors.danger, icon: 'close-circle-outline' },
+  used: { label: 'Consommée', bg: colors.tintBlueBg, fg: colors.info, icon: 'checkbox-outline' },
+  cancelled: { label: 'Annulée', bg: colors.surfaceAlt, fg: colors.textMuted, icon: 'ban-outline' },
 };
 
 type TabKey = 'mine' | 'received';
@@ -59,9 +59,6 @@ export default function ProxiesScreen() {
   const [tab, setTab] = useState<TabKey>('mine');
   const [modalOpen, setModalOpen] = useState(false);
 
-  const scrollRef = useRef<ScrollView>(null);
-  const listY = useRef(0);
-
   const proxiesQ = useQuery({ queryKey: ['proxies'], queryFn: () => proxiesApi.list() });
   const all = proxiesQ.data ?? [];
 
@@ -73,46 +70,39 @@ export default function ProxiesScreen() {
     const set = Array.isArray(s) ? s : [s];
     return mine.filter((p) => p.status && set.includes(p.status)).length;
   };
-  const summary = [
-    { label: 'Procurations actives', value: count('approved') },
-    { label: 'En attente validation', value: count('pending') },
-    { label: 'Approuvées', value: count(['approved', 'used']) },
-    { label: 'Refusées', value: count('rejected') },
-  ];
 
   const onCreated = () => qc.invalidateQueries({ queryKey: ['proxies'] });
-  const goToList = () => scrollRef.current?.scrollTo({ y: Math.max(0, listY.current - 8), animated: true });
 
   return (
     <View style={styles.container}>
       <ScrollView
-        ref={scrollRef}
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={proxiesQ.isRefetching} onRefresh={() => proxiesQ.refetch()} tintColor={colors.primary} />
         }>
-        {/* Section heading */}
+        
+        {/* Header Heading */}
         <View>
           <Text style={styles.overline}>Communauté</Text>
           <Text style={styles.pageTitle}>Procurations & Délégations</Text>
           <Text style={styles.pageSub}>
-            Gérez les représentations officielles, validations du bureau et délégations de collecte
-            pendant les séances.
+            Gérez vos délégations de présence et de versement lors des séances de l'association.
           </Text>
         </View>
 
-        {/* Hero */}
+        {/* Hero Banner Card */}
         <LinearGradient
-          colors={[colors.green[800], colors.green[500]]}
+          colors={[colors.primary, colors.green[600]]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.hero}>
-          <Text style={styles.heroTitle}>Sécurisez les délégations de présence</Text>
-          <Text style={styles.heroSub}>
-            Validation des procurations, contrôle des représentants et gestion des documents officiels
-            en temps réel.
-          </Text>
+          <View style={styles.heroInfo}>
+            <Text style={styles.heroTitle}>Mandater un représentant</Text>
+            <Text style={styles.heroSub}>
+              Créez une procuration officielle pour permettre à un autre membre de vous représenter ou de collecter en séance.
+            </Text>
+          </View>
 
           <Pressable
             onPress={() => setModalOpen(true)}
@@ -120,73 +110,79 @@ export default function ProxiesScreen() {
             <Ionicons name="add" size={18} color={colors.primary} />
             <Text style={styles.heroBtnWhiteText}>Créer une procuration</Text>
           </Pressable>
-
-          <Pressable
-            onPress={goToList}
-            style={({ pressed }) => [styles.heroBtnGhost, pressed && styles.pressed]}>
-            <Text style={styles.heroBtnGhostText}>Voir les validations</Text>
-          </Pressable>
-
-          {/* Summary */}
-          <View style={styles.summary}>
-            <Text style={styles.summaryTitle}>RÉSUMÉ PROCURATIONS</Text>
-            <View style={styles.summaryGrid}>
-              {summary.map((it) => (
-                <View key={it.label} style={styles.summaryItem}>
-                  <Text style={styles.summaryLabel} numberOfLines={1}>
-                    {it.label}
-                  </Text>
-                  <Text style={styles.summaryValue}>{it.value}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
         </LinearGradient>
 
-        {/* Workflow */}
-        <Card style={styles.workflowCard}>
-          <Text style={styles.workflowTitle}>Workflow des Procurations</Text>
-          <Text style={styles.workflowSub}>Cycle complet de validation et de consommation.</Text>
-          {WORKFLOW.map((step, i) => (
-            <View key={step.title} style={[styles.step, i > 0 && styles.stepGap]}>
-              <View style={styles.stepIcon}>
-                <Ionicons name={step.icon} size={22} color={colors.primary} />
-              </View>
-              <Text style={styles.stepTitle}>{step.title}</Text>
-              <Text style={styles.stepDesc}>{step.desc}</Text>
+        {/* Bilan Procurations Stats Card */}
+        <Card style={styles.summaryCard}>
+          <Text style={styles.summaryCardTitle}>Mon bilan des procurations</Text>
+          <View style={styles.statsGrid}>
+            <View style={styles.statCol}>
+              <Text style={[styles.statVal, { color: colors.primary }]}>{count('approved')}</Text>
+              <Text style={styles.statLabel}>Actives</Text>
             </View>
-          ))}
+            <View style={styles.statDivider} />
+            <View style={styles.statCol}>
+              <Text style={[styles.statVal, { color: colors.goldAccent }]}>{count('pending')}</Text>
+              <Text style={styles.statLabel}>En attente</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statCol}>
+              <Text style={[styles.statVal, { color: colors.info }]}>{count('used')}</Text>
+              <Text style={styles.statLabel}>Consommées</Text>
+            </View>
+          </View>
         </Card>
 
-        {/* Tabs + create */}
-        <View onLayout={(e) => (listY.current = e.nativeEvent.layout.y)}>
-          <View style={styles.tabs}>
-            <Pressable onPress={() => setTab('mine')} style={styles.tab}>
-              <Text style={[styles.tabText, tab === 'mine' && styles.tabTextActive]}>Mes procurations</Text>
-              {tab === 'mine' ? <View style={styles.tabUnderline} /> : null}
-            </Pressable>
-            <Pressable onPress={() => setTab('received')} style={styles.tab}>
-              <Text style={[styles.tabText, tab === 'received' && styles.tabTextActive]}>Reçues</Text>
-              {tab === 'received' ? <View style={styles.tabUnderline} /> : null}
-            </Pressable>
+        {/* Horizontal Workflow Stepper */}
+        <Card style={styles.workflowCard}>
+          <Text style={styles.workflowTitle}>Workflow de validation</Text>
+          <View style={styles.stepperContainer}>
+            {WORKFLOW.map((step, i) => (
+              <React.Fragment key={step.title}>
+                <View style={styles.stepDotContainer}>
+                  <View style={styles.stepDotIcon}>
+                    <Ionicons name={step.icon} size={14} color={colors.primary} />
+                  </View>
+                  <Text style={styles.stepDotLabel}>{step.title}</Text>
+                </View>
+                {i < WORKFLOW.length - 1 && (
+                  <View style={styles.stepLine} />
+                )}
+              </React.Fragment>
+            ))}
           </View>
+        </Card>
 
+        {/* Tabs Control */}
+        <View style={styles.tabsRow}>
           <Pressable
-            onPress={() => setModalOpen(true)}
-            style={({ pressed }) => [styles.newBtn, pressed && styles.pressed]}>
-            <Ionicons name="add" size={18} color={colors.white} />
-            <Text style={styles.newBtnText}>Nouvelle procuration</Text>
+            onPress={() => setTab('mine')}
+            style={[styles.tabBtn, tab === 'mine' && styles.tabActive]}
+          >
+            <Text style={[styles.tabText, tab === 'mine' && styles.tabTextActive]}>
+              Mes demandes ({mine.length})
+            </Text>
           </Pressable>
-
-          {/* List */}
-          {list.length === 0 ? (
-            <Card style={styles.emptyCard}>
-              <Text style={styles.empty}>Aucune procuration.</Text>
-            </Card>
-          ) : (
-            list.map((p) => <ProxyItem key={p.id} proxy={p} tab={tab} />)
-          )}
+          
+          <Pressable
+            onPress={() => setTab('received')}
+            style={[styles.tabBtn, tab === 'received' && styles.tabActive]}
+          >
+            <Text style={[styles.tabText, tab === 'received' && styles.tabTextActive]}>
+              Reçues ({received.length})
+            </Text>
+          </Pressable>
         </View>
+
+        {/* List of Proxies */}
+        {list.length === 0 ? (
+          <Card style={styles.emptyCard}>
+            <Ionicons name="people-outline" size={28} color={colors.textLight} />
+            <Text style={styles.empty}>Aucune procuration dans cette catégorie.</Text>
+          </Card>
+        ) : (
+          list.map((p) => <ProxyItem key={p.id} proxy={p} tab={tab} />)
+        )}
       </ScrollView>
 
       <ProxyRequestModal
@@ -205,6 +201,7 @@ function ProxyItem({ proxy, tab }: { proxy: Proxy; tab: TabKey }) {
     tab === 'mine'
       ? proxy.proxy_name ?? 'Membre mandaté'
       : proxy.grantor_name ?? 'Membre mandant';
+  
   const sessionLabel = [
     proxy.session_number != null ? `Séance N°${proxy.session_number}` : null,
     frDate(proxy.session_date),
@@ -215,21 +212,29 @@ function ProxyItem({ proxy, tab }: { proxy: Proxy; tab: TabKey }) {
   return (
     <Card style={styles.itemCard}>
       <View style={styles.itemHead}>
-        <View style={styles.itemBubble}>
-          <Ionicons name="people-outline" size={20} color={colors.primary} />
+        <View style={[styles.itemBubble, { borderColor: st.fg }]}>
+          <Ionicons name={st.icon as any} size={20} color={st.fg} />
         </View>
         <View style={styles.flex}>
           <Text style={styles.itemName} numberOfLines={1}>
-            {tab === 'mine' ? `Délégué à ${counterpart}` : `Reçue de ${counterpart}`}
+            {tab === 'mine' ? `Mandat à : ${counterpart}` : `Reçu de : ${counterpart}`}
           </Text>
           {sessionLabel ? <Text style={styles.itemMeta} numberOfLines={1}>{sessionLabel}</Text> : null}
+          {proxy.tontine_name ? (
+            <Text style={styles.itemTontine}>Tontine : {proxy.tontine_name}</Text>
+          ) : null}
         </View>
-        <View style={[styles.badge, { backgroundColor: st.bg }]}>
-          <Text style={[styles.badgeText, { color: st.fg }]}>{st.label}</Text>
+        <View style={styles.rightCol}>
+          <View style={[styles.badge, { backgroundColor: st.bg }]}>
+            <Text style={[styles.badgeText, { color: st.fg }]}>{st.label}</Text>
+          </View>
         </View>
       </View>
-      {proxy.tontine_name ? <Text style={styles.itemExtra}>Tontine : {proxy.tontine_name}</Text> : null}
-      {proxy.reason ? <Text style={styles.itemReason} numberOfLines={2}>« {proxy.reason} »</Text> : null}
+      {proxy.reason ? (
+        <View style={styles.reasonBox}>
+          <Text style={styles.itemReason} numberOfLines={2}>« {proxy.reason} »</Text>
+        </View>
+      ) : null}
     </Card>
   );
 }
@@ -237,17 +242,18 @@ function ProxyItem({ proxy, tab }: { proxy: Proxy; tab: TabKey }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
-  scroll: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.x3 },
+  scroll: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.x3 },
   pressed: { opacity: 0.85 },
 
   overline: { fontSize: font.size.xs, fontWeight: font.semibold, color: colors.textMuted, letterSpacing: 0.6, textTransform: 'uppercase' },
   pageTitle: { fontSize: font.size.x2, fontWeight: font.extrabold, color: colors.text, marginTop: 2, letterSpacing: -0.3 },
-  pageSub: { fontSize: font.size.sm, color: colors.textMuted, marginTop: 6, lineHeight: font.size.sm * 1.45 },
+  pageSub: { fontSize: font.size.sm, color: colors.textMuted, marginTop: 4, lineHeight: font.size.sm * 1.4 },
 
-  // Hero
-  hero: { borderRadius: radius.hero, padding: spacing.x2, ...cardShadow },
-  heroTitle: { color: colors.white, fontSize: font.size.xl, fontWeight: font.extrabold, letterSpacing: -0.3 },
-  heroSub: { color: 'rgba(255,255,255,0.92)', fontSize: font.size.sm, marginTop: 8, lineHeight: font.size.sm * 1.45 },
+  // Hero Card
+  hero: { borderRadius: radius.hero, padding: 20, ...cardShadow },
+  heroInfo: { gap: 6 },
+  heroTitle: { color: colors.white, fontSize: font.size.lg, fontWeight: font.bold },
+  heroSub: { color: 'rgba(255,255,255,0.85)', fontSize: font.size.sm, lineHeight: 18 },
   heroBtnWhite: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -255,92 +261,68 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: colors.white,
     borderRadius: radius.pill,
-    minHeight: 48,
-    marginTop: spacing.lg,
+    height: 44,
+    marginTop: spacing.md,
+    ...cardShadow,
   },
-  heroBtnWhiteText: { color: colors.primary, fontWeight: font.bold, fontSize: font.size.md },
-  heroBtnGhost: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.pill,
-    minHeight: 44,
-    marginTop: spacing.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.55)',
-    backgroundColor: 'rgba(255,255,255,0.12)',
-  },
-  heroBtnGhostText: { color: colors.white, fontWeight: font.semibold, fontSize: font.size.sm },
+  heroBtnWhiteText: { color: colors.primary, fontWeight: font.bold, fontSize: font.size.sm },
 
-  summary: {
-    marginTop: spacing.lg,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-  },
-  summaryTitle: { color: 'rgba(255,255,255,0.8)', fontSize: font.size.xs, fontWeight: font.semibold, letterSpacing: 0.6, marginBottom: spacing.md },
-  summaryGrid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: spacing.md },
-  summaryItem: { width: '50%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingRight: spacing.md },
-  summaryLabel: { flex: 1, color: 'rgba(255,255,255,0.92)', fontSize: font.size.sm },
-  summaryValue: { color: colors.white, fontSize: font.size.lg, fontWeight: font.bold, marginLeft: 8 },
+  // Summary Card
+  summaryCard: { borderRadius: radius.lg, padding: spacing.lg, ...cardShadow },
+  summaryCardTitle: { fontSize: font.size.sm, fontWeight: font.semibold, color: colors.textMuted, marginBottom: spacing.md },
+  statsGrid: { flexDirection: 'row', alignItems: 'center' },
+  statCol: { flex: 1, alignItems: 'center', gap: 4 },
+  statVal: { fontSize: font.size.xl, fontWeight: font.extrabold, color: colors.text },
+  statLabel: { fontSize: 10, color: colors.textMuted, textAlign: 'center' },
+  statDivider: { width: 1, alignSelf: 'stretch', backgroundColor: colors.surfaceAlt },
 
-  // Workflow
-  workflowCard: { borderRadius: radius.card, padding: spacing.xl },
-  workflowTitle: { fontSize: font.size.lg, fontWeight: font.bold, color: colors.text },
-  workflowSub: { fontSize: font.size.sm, color: colors.textMuted, marginTop: 2, marginBottom: spacing.lg },
-  step: {
-    backgroundColor: colors.green[50],
-    borderWidth: 1,
-    borderColor: colors.tintGreenBorder,
-    borderRadius: radius.lg,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.md,
-    alignItems: 'center',
-  },
-  stepGap: { marginTop: spacing.md },
-  stepIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  // Workflow Stepper
+  workflowCard: { borderRadius: radius.lg, padding: spacing.md, ...cardShadow },
+  workflowTitle: { fontSize: font.size.sm, fontWeight: font.semibold, color: colors.textMuted, marginBottom: spacing.md },
+  stepperContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4 },
+  stepDotContainer: { alignItems: 'center', zIndex: 2 },
+  stepDotIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: colors.tintGreenBorder,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.sm,
   },
-  stepTitle: { fontSize: font.size.md, fontWeight: font.bold, color: colors.text },
-  stepDesc: { fontSize: font.size.sm, color: colors.textMuted, textAlign: 'center', marginTop: 4, lineHeight: font.size.sm * 1.4 },
+  stepDotLabel: { fontSize: 8, fontWeight: font.bold, color: colors.textMuted, marginTop: 4, textAlign: 'center' },
+  stepLine: { height: 1, flex: 1, backgroundColor: colors.border, marginTop: -14, zIndex: 1, marginHorizontal: -4 },
 
-  // Tabs
-  tabs: { flexDirection: 'row', gap: spacing.x2, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: spacing.lg },
-  tab: { paddingVertical: spacing.sm },
-  tabText: { fontSize: font.size.md, fontWeight: font.semibold, color: colors.textMuted },
-  tabTextActive: { color: colors.text },
-  tabUnderline: { height: 3, borderRadius: 2, backgroundColor: colors.primary, marginTop: spacing.sm },
+  // Tabs segmented control
+  tabsRow: { flexDirection: 'row', backgroundColor: colors.surfaceAlt, borderRadius: radius.md, padding: 4, marginVertical: spacing.xs },
+  tabBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: radius.sm },
+  tabActive: { backgroundColor: colors.white, ...cardShadow },
+  tabText: { fontSize: font.size.sm, color: colors.textMuted, fontWeight: font.medium },
+  tabTextActive: { color: colors.primary, fontWeight: font.bold },
 
-  newBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  // List Items
+  emptyCard: { borderRadius: radius.lg, alignItems: 'center', paddingVertical: spacing.x3, gap: spacing.sm, ...cardShadow },
+  empty: { fontSize: font.size.sm, color: colors.textMuted, textAlign: 'center' },
+
+  itemCard: { borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.sm, ...cardShadow },
+  itemHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  itemBubble: { 
+    width: 40, 
+    height: 40, 
+    borderRadius: 20, 
+    backgroundColor: colors.white, 
+    borderWidth: 1, 
+    alignItems: 'center', 
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: colors.primary,
-    borderRadius: radius.pill,
-    minHeight: 50,
-    marginBottom: spacing.lg,
+    marginTop: 2,
   },
-  newBtnText: { color: colors.white, fontWeight: font.bold, fontSize: font.size.md },
-
-  // List
-  emptyCard: { borderRadius: radius.card, alignItems: 'center', paddingVertical: spacing.x2 },
-  empty: { fontSize: font.size.sm, color: colors.textMuted },
-
-  itemCard: { borderRadius: radius.card, padding: spacing.lg, marginBottom: spacing.md },
-  itemHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  itemBubble: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.greenBg, alignItems: 'center', justifyContent: 'center' },
-  itemName: { fontSize: font.size.md, fontWeight: font.semibold, color: colors.text },
-  itemMeta: { fontSize: font.size.sm, color: colors.textMuted, marginTop: 1 },
-  badge: { borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4 },
-  badgeText: { fontSize: font.size.xs, fontWeight: font.bold },
-  itemExtra: { fontSize: font.size.sm, color: colors.textMuted, marginTop: spacing.md },
-  itemReason: { fontSize: font.size.sm, color: colors.text, fontStyle: 'italic', marginTop: 6 },
+  itemName: { fontSize: font.size.md, fontWeight: font.bold, color: colors.text },
+  itemMeta: { fontSize: font.size.xs, color: colors.primary, fontWeight: font.medium, marginTop: 4 },
+  itemTontine: { fontSize: font.size.xs, color: colors.textMuted, marginTop: 2 },
+  badge: { borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 2 },
+  badgeText: { fontSize: 10, fontWeight: font.bold },
+  rightCol: { alignItems: 'flex-end' },
+  reasonBox: { backgroundColor: colors.surfaceAlt, borderRadius: radius.sm, padding: 8, marginTop: 10 },
+  itemReason: { fontSize: font.size.xs, color: colors.text, fontStyle: 'italic' },
 });

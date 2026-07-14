@@ -94,6 +94,9 @@ export type AppStackParamList = {
   Tabs: NavigatorScreenParams<AppTabsParamList>;
   Bureau: NavigatorScreenParams<BureauStackParamList>;
   Notifications: undefined;
+  EditProfile: undefined;
+  ChangePassword: undefined;
+  Security: undefined;
   AnnouncementDetail: { id: string };
   EventDetail: { id: string };
   SessionDetail: { id: string };

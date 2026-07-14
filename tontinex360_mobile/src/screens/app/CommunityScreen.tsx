@@ -387,7 +387,7 @@ export default function CommunityScreen() {
             return active ? (
               <LinearGradient
                 key={t.key}
-                colors={[colors.green[500], colors.primary]}
+                colors={[colors.primary, colors.green[600]]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.tab}
@@ -419,7 +419,7 @@ export default function CommunityScreen() {
             {/* Hero — prochaine réunion */}
             {nextR ? (
               <LinearGradient
-                colors={[colors.green[800], colors.green[500]]}
+                colors={[colors.primary, colors.green[600]]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.hero}
@@ -592,7 +592,7 @@ export default function CommunityScreen() {
                   }
                 >
                   <LinearGradient
-                    colors={[colors.green[800], colors.green[500]]}
+                    colors={[colors.primary, colors.green[600]]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.hero}
@@ -691,7 +691,7 @@ export default function CommunityScreen() {
             <>
               {/* Hero — vote en cours */}
               {heroPoll ? (
-                <LinearGradient colors={[colors.green[800], colors.green[500]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
+                <LinearGradient colors={[colors.primary, colors.green[600]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
                   <Text style={styles.heroKicker}>VOTES EN COURS</Text>
                   <Text style={styles.heroTitle}>{heroPoll.title}</Text>
                   {heroPoll.created_by_name ? (

@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View, StatusBar } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 
 import RootNavigator from './navigation/RootNavigator';
+import { queryClient } from './lib/query-client';
 import { hydrateAuth } from './lib/storage/secure-storage';
 import { bootstrapSession } from './lib/auth/session';
 import { hydrateApp } from './lib/stores/app-store';
@@ -16,10 +17,6 @@ import { colors } from './theme/colors';
 
 // Patch Text/TextInput to default to Poppins (app-wide) before any render.
 patchTextFonts();
-
-const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
-});
 
 /** Wait for the persisted store to finish rehydrating before fetching fresh data. */
 function waitForStoreHydration(): Promise<void> {

@@ -1,6 +1,6 @@
 // Ported from web front (src/lib/api/cycles.ts) — membre + bureau.
 import api, { unwrap, Paginated } from './client';
-import type { Cycle, CycleTontineConfig, Session, AuctionBid } from '../types/cycle';
+import type { Cycle, CycleTontineConfig, Session, AuctionBid, SessionPot } from '../types/cycle';
 
 export interface CycleSessionsStats {
   total_sessions?: number;
@@ -73,5 +73,10 @@ export const cyclesApi = {
   bids: (params?: { pot?: string; status?: string }) =>
     api
       .get<AuctionBid[] | Paginated<AuctionBid>>('/cycles/bids/', { params })
+      .then((r) => unwrap(r.data)),
+
+  pots: (params?: { session?: string }) =>
+    api
+      .get<SessionPot[] | Paginated<SessionPot>>('/cycles/pots/', { params })
       .then((r) => unwrap(r.data)),
 };

@@ -84,7 +84,7 @@ export default function BureauDashboardScreen() {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Hero */}
         <LinearGradient
-          colors={[colors.primary, colors.primaryDark]}
+          colors={[colors.primary, colors.green[600]]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.hero}
@@ -93,7 +93,7 @@ export default function BureauDashboardScreen() {
             <Ionicons name="ribbon" size={11} color={colors.primary} />
             <Text style={styles.badgeText}>BUREAU</Text>
           </View>
-          <Text style={styles.welcome}>Bonjour {user?.first_name ?? ''} 👋</Text>
+          <Text style={styles.welcome}>Bonjour {user?.first_name ?? ''}</Text>
           <Text style={styles.welcomeSub}>
             {assoc?.name ? `${assoc.name} — ` : ''}gérez votre tontine depuis cet espace.
           </Text>
@@ -104,7 +104,7 @@ export default function BureauDashboardScreen() {
           <View style={styles.tutoCard}>
             <View style={styles.tutoHead}>
               <View style={styles.flex}>
-                <Text style={styles.tutoTitle}>Bienvenue président·e ! 👋</Text>
+                <Text style={styles.tutoTitle}>Bienvenue président·e ! </Text>
                 <Text style={styles.tutoSub}>Pour démarrer votre association, voici les étapes recommandées :</Text>
               </View>
               <Pressable onPress={() => assoc && dismissTuto(assoc.slug)} hitSlop={10}>
@@ -171,7 +171,13 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
   scroll: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.x5 },
-  hero: { borderRadius: radius.hero, padding: spacing.xl, gap: 4, backgroundColor: colors.primary, ...cardShadow },
+  hero: { 
+    borderRadius: radius.hero, 
+    padding: 24, 
+    gap: 8, 
+    backgroundColor: colors.primary, 
+    ...cardShadow 
+  },
 
   tutoCard: { backgroundColor: colors.white, borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm, borderWidth: 1, borderColor: colors.greenBgDeep, ...cardShadow },
   tutoHead: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
@@ -192,8 +198,19 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   badgeText: { fontSize: 10, color: colors.primary, fontWeight: font.bold, letterSpacing: 0.5 },
-  welcome: { color: colors.white, fontSize: font.size.xl, fontWeight: font.bold, marginTop: 6 },
-  welcomeSub: { color: 'rgba(255,255,255,0.85)', fontSize: font.size.sm },
+  welcome: { 
+    color: colors.white, 
+    fontSize: 24, 
+    fontWeight: font.bold, 
+    lineHeight: 30, 
+    marginTop: 4 
+  },
+  welcomeSub: { 
+    color: 'rgba(255, 255, 255, 0.85)', 
+    fontSize: font.size.sm, 
+    lineHeight: 18, 
+    marginTop: 2 
+  },
   sectionLabel: {
     fontSize: font.size.sm,
     fontWeight: font.semibold,

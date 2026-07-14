@@ -7,8 +7,10 @@ import {
   RefreshControl,
   Pressable,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -29,6 +31,8 @@ export default function TontinesScreen() {
   const qc = useQueryClient();
   const membership = useAuthStore((s) => s.currentMembership);
   const [modalOpen, setModalOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const { width } = useWindowDimensions();
 
   const cycleQ = useQuery({ queryKey: ['cycle', 'current'], queryFn: cyclesApi.current });
   const typesQ = useQuery({ queryKey: ['tontines', 'types'], queryFn: () => tontinesApi.types({ is_active: true }) });
@@ -52,22 +56,32 @@ export default function TontinesScreen() {
   const onSubscribed = () => qc.invalidateQueries({ queryKey: ['tontines', 'subs'] });
   const loading = subsQ.isLoading || cycleQ.isLoading || typesQ.isLoading;
 
+  const safeIndex = Math.min(activeIndex, Math.max(0, mySubs.length - 1));
+  const activeSub = mySubs[safeIndex];
+
+  // Carousel layout math: card width is full screen width minus paddings and preview offsets
+  const CARD_WIDTH = width - 48;
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}>
-        <Text style={styles.subtitle}>Souscrivez aux tontines de l'association et suivez vos parts.</Text>
-
-        {/* Subscribe button */}
-        <Pressable
-          onPress={() => setModalOpen(true)}
-          disabled={!canSubscribe}
-          style={({ pressed }) => [styles.subBtn, !canSubscribe && styles.subBtnDisabled, pressed && styles.pressed]}>
-          <Ionicons name="add" size={18} color={colors.white} />
-          <Text style={styles.subBtnText}>Souscrire à une tontine</Text>
-        </Pressable>
+        
+        <View style={styles.header}>
+          <View style={styles.flex}>
+            <Text style={styles.subtitle}>Souscrivez aux tontines de l'association et suivez vos parts.</Text>
+          </View>
+          
+          <Pressable
+            onPress={() => setModalOpen(true)}
+            disabled={!canSubscribe}
+            style={({ pressed }) => [styles.subBtn, !canSubscribe && styles.subBtnDisabled, pressed && styles.pressed]}>
+            <Ionicons name="add" size={16} color={colors.white} />
+            <Text style={styles.subBtnText}>Souscrire</Text>
+          </Pressable>
+        </View>
 
         {loading ? (
           <ActivityIndicator color={colors.primary} style={styles.loader} />
@@ -84,47 +98,126 @@ export default function TontinesScreen() {
             </Text>
           </Card>
         ) : (
-          mySubs.map((s) => (
-            <Card key={s.id} style={styles.subCard}>
-              <View style={styles.subHead}>
-                <View style={styles.subIcon}>
-                  <Ionicons name="albums" size={20} color={colors.green[500]} />
-                </View>
-                <View style={styles.flex}>
-                  <Text style={styles.subName}>{s.tontine_name}</Text>
-                  <Text style={styles.subCycle}>Cycle : {cycle?.name ?? '—'}</Text>
-                </View>
-              </View>
+          <View style={styles.dashboard}>
+            {/* Horizontal Tontines Carousel */}
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              snapToInterval={CARD_WIDTH + 16}
+              decelerationRate="fast"
+              contentContainerStyle={styles.carouselContainer}
+              onMomentumScrollEnd={(e) => {
+                const index = Math.round(e.nativeEvent.contentOffset.x / (CARD_WIDTH + 16));
+                setActiveIndex(index);
+              }}
+            >
+              {mySubs.map((s) => (
+                <LinearGradient
+                  key={s.id}
+                  colors={[colors.primary, colors.primaryDark]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={[styles.tontineCard, { width: CARD_WIDTH }]}
+                >
+                  <View style={styles.cardHeader}>
+                    <View style={styles.flex}>
+                      <Text style={styles.cardTontineName} numberOfLines={1}>{s.tontine_name}</Text>
+                      <Text style={styles.cardCycleName} numberOfLines={1}>Cycle : {cycle?.name ?? '—'}</Text>
+                    </View>
+                    <View style={styles.cardLogo}>
+                      <Ionicons name="albums" size={20} color={colors.primary} />
+                    </View>
+                  </View>
 
-              <View style={styles.subRow}>
-                <Text style={styles.subRowLabel}>Parts</Text>
-                <Text style={styles.subRowValue}>{s.num_shares}</Text>
-              </View>
-              <View style={styles.subRow}>
-                <Text style={styles.subRowLabel}>Par séance</Text>
-                <Text style={styles.subRowValueStrong}>{formatNumber(s.amount_per_session ?? 0)} XAF</Text>
-              </View>
-              <Text style={styles.subRate}>Taux par part : {formatNumber(s.rate_per_share)} XAF</Text>
+                  <View style={styles.cardBody}>
+                    <Text style={styles.cardAmountLabel}>Montant à verser par séance</Text>
+                    <Text style={styles.cardAmountValue}>{formatNumber(s.amount_per_session ?? 0)} XAF</Text>
+                  </View>
 
-              <Pressable
-                style={({ pressed }) => [styles.cotiserBtn, pressed && styles.pressed]}
-                onPress={() => {
-                  if (!membership || !cycle) return;
-                  navigation.navigate('Cotiser', {
-                    membershipId: membership.id,
-                    tontineTypeId: s.tontine_type,
-                    tontineName: s.tontine_name ?? 'Tontine',
-                    cycleId: cycle.id,
-                    numShares: Number(s.num_shares) || 1,
-                    ratePerShare: Number(s.rate_per_share) || 0,
-                    amountPerSession: Number(s.amount_per_session) || Number(s.num_shares) * Number(s.rate_per_share) || 0,
-                  });
-                }}>
-                <Ionicons name="card-outline" size={18} color={colors.white} />
-                <Text style={styles.cotiserText}>Cotiser</Text>
-              </Pressable>
-            </Card>
-          ))
+                  <View style={styles.cardFooter}>
+                    <View>
+                      <Text style={styles.cardFooterLabel}>Parts souscrites</Text>
+                      <Text style={styles.cardFooterValue}>{s.num_shares} {s.num_shares > 1 ? 'parts' : 'part'}</Text>
+                    </View>
+                    <View style={styles.cardFooterRight}>
+                      <Text style={styles.cardFooterLabel}>Taux par part</Text>
+                      <Text style={styles.cardFooterValue}>{formatNumber(s.rate_per_share)} XAF</Text>
+                    </View>
+                  </View>
+                </LinearGradient>
+              ))}
+            </ScrollView>
+
+            {/* Carousel Dots Indicators */}
+            {mySubs.length > 1 && (
+              <View style={styles.dots}>
+                {mySubs.map((_, i) => (
+                  <View
+                    key={i}
+                    style={[
+                      styles.dot,
+                      i === safeIndex ? styles.dotActive : styles.dotInactive,
+                    ]}
+                  />
+                ))}
+              </View>
+            )}
+
+            {/* Active Subscription Details Card */}
+            {activeSub && (
+              <Card style={styles.detailCard}>
+                <View style={styles.detailHeader}>
+                  <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
+                  <Text style={styles.detailTitle}>Détails de la souscription</Text>
+                </View>
+
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Tontine</Text>
+                  <Text style={styles.detailValue}>{activeSub.tontine_name}</Text>
+                </View>
+                
+                <View style={styles.detailDivider} />
+
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Nombre de parts</Text>
+                  <Text style={styles.detailValue}>{activeSub.num_shares}</Text>
+                </View>
+
+                <View style={styles.detailDivider} />
+
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Taux de la part</Text>
+                  <Text style={styles.detailValue}>{formatNumber(activeSub.rate_per_share)} XAF</Text>
+                </View>
+
+                <View style={styles.detailDivider} />
+
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Versement requis</Text>
+                  <Text style={styles.detailValueStrong}>{formatNumber(activeSub.amount_per_session ?? 0)} XAF</Text>
+                </View>
+
+                <Pressable
+                  style={({ pressed }) => [styles.cotiserBtn, pressed && styles.pressed]}
+                  onPress={() => {
+                    if (!membership || !cycle) return;
+                    navigation.navigate('Cotiser', {
+                      membershipId: membership.id,
+                      tontineTypeId: activeSub.tontine_type,
+                      tontineName: activeSub.tontine_name ?? 'Tontine',
+                      cycleId: cycle.id,
+                      numShares: Number(activeSub.num_shares) || 1,
+                      ratePerShare: Number(activeSub.rate_per_share) || 0,
+                      amountPerSession: Number(activeSub.amount_per_session) || Number(activeSub.num_shares) * Number(activeSub.rate_per_share) || 0,
+                    });
+                  }}>
+                  <Ionicons name="card-outline" size={18} color={colors.white} />
+                  <Text style={styles.cotiserText}>Effectuer ma cotisation</Text>
+                </Pressable>
+              </Card>
+            )}
+          </View>
         )}
       </ScrollView>
 
@@ -143,24 +236,30 @@ export default function TontinesScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
-  scroll: { padding: spacing.lg, gap: spacing.lg },
-  header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingTop: spacing.sm, gap: 12 },
-  title: { fontSize: font.size.x2, fontWeight: font.bold, color: colors.text },
-  subtitle: { marginTop: 2, fontSize: font.size.sm, color: colors.textMuted, lineHeight: font.size.sm * 1.4 },
+  scroll: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.x3 },
+  
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    gap: 12,
+    marginBottom: spacing.xs,
+  },
+  subtitle: { fontSize: font.size.sm, color: colors.textMuted, lineHeight: font.size.sm * 1.4 },
 
   subBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 6,
     backgroundColor: colors.primary,
     borderRadius: radius.pill,
-    minHeight: 50,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 22,
+    height: 38,
+    paddingHorizontal: 16,
+    ...cardShadow,
   },
   subBtnDisabled: { opacity: 0.5 },
-  subBtnText: { color: colors.white, fontWeight: font.bold, fontSize: font.size.md },
+  subBtnText: { color: colors.white, fontWeight: font.bold, fontSize: font.size.sm },
   pressed: { opacity: 0.85 },
 
   loader: { marginTop: spacing.x3 },
@@ -170,25 +269,140 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: font.size.md, fontWeight: font.semibold, color: colors.text, textAlign: 'center' },
   emptyText: { marginTop: 6, fontSize: font.size.sm, color: colors.textMuted, textAlign: 'center', lineHeight: font.size.sm * 1.4, paddingHorizontal: 8 },
 
-  subCard: { borderRadius: radius.lg, ...cardShadow },
-  subHead: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
-  subIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.greenBg, alignItems: 'center', justifyContent: 'center' },
-  subName: { fontSize: font.size.md, fontWeight: font.bold, color: colors.text },
-  subCycle: { fontSize: font.size.sm, color: colors.green[500], fontWeight: font.medium, marginTop: 1 },
-  subRow: {
+  dashboard: { gap: spacing.md },
+  
+  carouselContainer: {
+    gap: 16,
+    paddingBottom: 4,
+  },
+  
+  tontineCard: {
+    borderRadius: radius.hero,
+    padding: 20,
+    height: 180,
+    justifyContent: 'space-between',
+    ...cardShadow,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  cardTontineName: {
+    color: colors.white,
+    fontSize: font.size.lg,
+    fontWeight: font.bold,
+  },
+  cardCycleName: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: font.size.xs,
+    marginTop: 2,
+  },
+  cardLogo: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardBody: {
+    marginVertical: 4,
+  },
+  cardAmountLabel: {
+    color: 'rgba(255, 255, 255, 0.75)',
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  cardAmountValue: {
+    color: colors.white,
+    fontSize: font.size.xl,
+    fontWeight: font.extrabold,
+    marginTop: 2,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.15)',
+    paddingTop: 10,
+  },
+  cardFooterLabel: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 9,
+    textTransform: 'uppercase',
+  },
+  cardFooterValue: {
+    color: colors.white,
+    fontSize: font.size.sm,
+    fontWeight: font.semibold,
+    marginTop: 2,
+  },
+  cardFooterRight: {
+    alignItems: 'flex-end',
+  },
+
+  dots: {
+    flexDirection: 'row',
+    alignSelf: 'center',
+    gap: 6,
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  dot: {
+    height: 6,
+    borderRadius: 3,
+  },
+  dotActive: {
+    width: 16,
+    backgroundColor: colors.primary,
+  },
+  dotInactive: {
+    width: 6,
+    backgroundColor: colors.textLight,
+  },
+
+  detailCard: {
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    ...cardShadow,
+  },
+  detailHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.pill,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 8,
+    gap: 8,
+    marginBottom: spacing.md,
   },
-  subRowLabel: { fontSize: font.size.sm, color: colors.textMuted },
-  subRowValue: { fontSize: font.size.md, fontWeight: font.semibold, color: colors.text },
-  subRowValueStrong: { fontSize: font.size.md, fontWeight: font.bold, color: colors.primary },
-  subRate: { fontSize: font.size.xs, color: colors.textLight, marginTop: 2 },
+  detailTitle: {
+    fontSize: font.size.md,
+    fontWeight: font.bold,
+    color: colors.text,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  detailLabel: {
+    fontSize: font.size.sm,
+    color: colors.textMuted,
+  },
+  detailValue: {
+    fontSize: font.size.sm,
+    fontWeight: font.semibold,
+    color: colors.text,
+  },
+  detailValueStrong: {
+    fontSize: font.size.md,
+    fontWeight: font.bold,
+    color: colors.primary,
+  },
+  detailDivider: {
+    height: 1,
+    backgroundColor: colors.surfaceAlt,
+  },
   cotiserBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -196,10 +410,10 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: colors.primary,
     borderRadius: radius.pill,
-    minHeight: 44,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 20,
-    marginTop: 12,
+    minHeight: 48,
+    marginTop: spacing.lg,
+    width: '100%',
+    ...cardShadow,
   },
-  cotiserText: { color: colors.white, fontWeight: font.semibold, fontSize: font.size.sm },
+  cotiserText: { color: colors.white, fontWeight: font.bold, fontSize: font.size.base },
 });
