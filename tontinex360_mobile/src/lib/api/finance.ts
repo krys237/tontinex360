@@ -27,8 +27,17 @@ export const financeApi = {
   getContribution: (id: string) =>
     api.get<Contribution>(`/finance/contributions/${id}/`).then((r) => r.data),
 
-  createContribution: (data: Partial<Contribution> | FormData) =>
-    api.post<Contribution>('/finance/contributions/', data).then((r) => r.data),
+  createContribution: (data: Partial<Contribution> | FormData) => {
+    // Quand on joint un justificatif photo, `data` est un FormData : on force le
+    // Content-Type multipart (le défaut du client est application/json, qui
+    // casserait l'upload — RN ajoute alors lui-même la boundary).
+    const isForm = typeof FormData !== 'undefined' && data instanceof FormData;
+    return api
+      .post<Contribution>('/finance/contributions/', data, {
+        headers: isForm ? { 'Content-Type': 'multipart/form-data' } : undefined,
+      })
+      .then((r) => r.data);
+  },
 
   updateContribution: (id: string, data: Partial<Contribution>) =>
     api.patch<Contribution>(`/finance/contributions/${id}/`, data).then((r) => r.data),

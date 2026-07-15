@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, RefreshControl } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 
 import type { WorkspaceStackParamList } from '../../navigation/types';
-import { logout } from '../../lib/auth/session';
+import { logout, refreshWorkspace } from '../../lib/auth/session';
 import { colors } from '../../theme/colors';
 import { font } from '../../theme/typography';
 import { radius, spacing } from '../../theme/spacing';
@@ -14,6 +15,29 @@ import { IconBubble, GradientBackground } from '../../components/ui';
 type Props = NativeStackScreenProps<WorkspaceStackParamList, 'NoAssociation'>;
 
 export default function NoAssociationScreen({ navigation }: Props) {
+  const [refreshing, setRefreshing] = React.useState(false);
+
+  // À chaque fois qu'on revient sur cet écran (ex. retour depuis « Mes demandes »
+  // après une adhésion approuvée), on re-synchronise les associations. Si l'asso
+  // apparaît, WorkspaceStack se remonte sur ChooseAssociation, ou RootNavigator
+  // bascule directement sur l'app si c'est la seule.
+  useFocusEffect(
+    React.useCallback(() => {
+      refreshWorkspace().catch(() => {});
+    }, []),
+  );
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refreshWorkspace();
+    } catch {
+      // silencieux : l'écran reste utilisable même si le refetch échoue
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
   const showInviteHelp = () => {
     Alert.alert(
       "Lien d'invitation",
@@ -24,7 +48,13 @@ export default function NoAssociationScreen({ navigation }: Props) {
 
   return (
     <GradientBackground>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />
+        }
+      >
         <View style={styles.header}>
           <View style={styles.iconCircle}>
             <Ionicons name="business" size={28} color={colors.primary} />

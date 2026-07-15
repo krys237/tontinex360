@@ -37,8 +37,11 @@ export default function RootNavigator() {
     );
   }
 
+  // Clefer sur l'asso active force le remontage complet d'AppStack au changement
+  // de tenant : le back-stack est vidé (plus de route SessionDetail{id}/Cotiser{…}
+  // d'un tenant dans l'autre) et les permissions repartent de zéro.
   return (
-    <RootStack.Navigator screenOptions={{ headerShown: false }}>
+    <RootStack.Navigator key={activeAssociation?.slug ?? 'none'} screenOptions={{ headerShown: false }}>
       {screen}
     </RootStack.Navigator>
   );

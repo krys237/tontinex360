@@ -22,6 +22,10 @@ export interface Contribution {
   payment_method?: string;
   paid_at?: string;
   created_at?: string;
+  /** Justificatif de paiement joint par le membre (self-service). */
+  contribution_justification?: string | null;
+  /** False tant que le trésorier n'a pas inspecté le justificatif. */
+  is_validated?: boolean;
   has_receipt?: boolean;
   has_pending_correction?: boolean;
   receipt_number?: string;

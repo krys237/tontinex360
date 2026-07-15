@@ -17,7 +17,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { financeApi } from '../../lib/api/finance';
 import { cyclesApi } from '../../lib/api/cycles';
-import type { Contribution } from '../../lib/types/finance';
 import type { Session } from '../../lib/types/cycle';
 import { formatXAF } from '../../lib/utils/format';
 import type { AppStackParamList } from '../../navigation/types';
@@ -119,21 +118,35 @@ export default function CotiserScreen() {
 
   const submit = async () => {
     if (!selectedSession) return;
+    if (!proofUri) {
+      return Alert.alert(
+        'Preuve requise',
+        'Joignez une photo ou une capture de votre reçu de paiement avant d’envoyer.',
+      );
+    }
     setSubmitting(true);
     try {
-      // MVP: CREATE the contribution already marked paid (backend records the payment).
-      // The proof image is captured locally but not sent (serializer has no proof field yet).
-      await financeApi.createContribution({
-        session: selectedSession.id,
-        membership: membershipId,
-        tontine_type: tontineTypeId,
-        num_shares: numShares,
-        rate_per_share: ratePerShare,
-        expected_amount: amountDue,
-        paid_amount: amountDue,
-        status: 'paid',
-        payment_method: method,
-      } as Partial<Contribution>);
+      // Self-service : on soumet la cotisation AVEC le justificatif photo. Le
+      // backend force status='submitted' + is_validated=False (une cotisation pour
+      // soi-même doit être validée par le trésorier) → aucun mouvement comptable
+      // tant qu'elle n'est pas inspectée. On envoie donc un multipart/form-data.
+      const form = new FormData();
+      form.append('session', selectedSession.id);
+      form.append('membership', membershipId);
+      form.append('tontine_type', tontineTypeId);
+      form.append('num_shares', String(numShares));
+      form.append('rate_per_share', String(ratePerShare));
+      form.append('expected_amount', String(amountDue));
+      form.append('paid_amount', String(amountDue));
+      form.append('status', 'submitted');
+      form.append('payment_method', method);
+
+      const fileName = proofUri.split('/').pop() || `preuve_${Date.now()}.jpg`;
+      const ext = fileName.split('.').pop()?.toLowerCase();
+      const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+      form.append('contribution_justification', { uri: proofUri, name: fileName, type: mime } as any);
+
+      await financeApi.createContribution(form);
       qc.invalidateQueries({ queryKey: ['contributions'] });
       qc.invalidateQueries({ queryKey: ['wallet'] });
       setStep(2);
@@ -280,7 +293,7 @@ export default function CotiserScreen() {
               )}
             </View>
             <Text style={styles.proofNote}>
-              La preuve est conservée localement pour l'instant (l'envoi au trésorier sera activé prochainement).
+              Votre preuve sera envoyée au trésorier, qui la vérifiera avant de valider la cotisation.
             </Text>
           </>
         )}
@@ -291,8 +304,10 @@ export default function CotiserScreen() {
             <View style={styles.successCircle}>
               <Ionicons name="checkmark" size={48} color={colors.white} />
             </View>
-            <Text style={styles.confirmTitle}>Cotisation enregistrée</Text>
-            <Text style={styles.confirmSub}>Votre paiement a bien été enregistré.</Text>
+            <Text style={styles.confirmTitle}>Cotisation soumise</Text>
+            <Text style={styles.confirmSub}>
+              Votre preuve a été envoyée au trésorier. Vous serez notifié dès sa validation.
+            </Text>
 
             <View style={styles.recap}>
               <View style={styles.recapRow}>
@@ -305,7 +320,7 @@ export default function CotiserScreen() {
               </View>
               <View style={[styles.recapRow, styles.recapDivider]}>
                 <Text style={styles.recapLabel}>Statut</Text>
-                <Text style={styles.recapStatus}>Payé</Text>
+                <Text style={styles.recapStatusPending}>En attente de validation</Text>
               </View>
             </View>
           </View>
@@ -412,6 +427,7 @@ const styles = StyleSheet.create({
   recapLabel: { fontSize: font.size.md, color: colors.textMuted },
   recapValue: { fontSize: font.size.md, fontWeight: font.bold, color: colors.text },
   recapStatus: { fontSize: font.size.md, fontWeight: font.bold, color: colors.success },
+  recapStatusPending: { fontSize: font.size.md, fontWeight: font.bold, color: colors.warning },
 
   emptyBox: { alignItems: 'center', paddingTop: spacing.x4, gap: 8 },
   emptyTitle: { fontSize: font.size.lg, fontWeight: font.bold, color: colors.text, marginTop: 8 },

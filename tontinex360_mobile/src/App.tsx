@@ -6,6 +6,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 
 import RootNavigator from './navigation/RootNavigator';
+import UpdateGate from './components/UpdateGate';
 import { queryClient } from './lib/query-client';
 import { hydrateAuth } from './lib/storage/secure-storage';
 import { bootstrapSession } from './lib/auth/session';
@@ -63,9 +64,13 @@ export default function App() {
             <ActivityIndicator size="large" color={colors.primary} style={styles.spinner} />
           </View>
         ) : (
-          <NavigationContainer>
-            <RootNavigator />
-          </NavigationContainer>
+          <>
+            <NavigationContainer>
+              <RootNavigator />
+            </NavigationContainer>
+            {/* Vérifie une version publiée plus récente et propose la mise à jour. */}
+            <UpdateGate />
+          </>
         )}
       </QueryClientProvider>
     </SafeAreaProvider>

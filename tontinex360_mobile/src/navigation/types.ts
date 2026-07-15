@@ -97,6 +97,12 @@ export type AppStackParamList = {
   EditProfile: undefined;
   ChangePassword: undefined;
   Security: undefined;
+  MyAssociations: undefined;
+  // Écrans workspace réutilisés depuis le profil (mêmes noms → réutilisables
+  // tels quels, ces écrans ne portent aucun paramètre).
+  CreateAssociation: undefined;
+  JoinRequest: undefined;
+  MyJoinRequests: undefined;
   AnnouncementDetail: { id: string };
   EventDetail: { id: string };
   SessionDetail: { id: string };

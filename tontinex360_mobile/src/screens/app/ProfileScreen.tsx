@@ -13,7 +13,9 @@ import { Card, Chip, IconBubble } from '../../components/ui';
 import type { AppTabsParamList, AppStackParamList } from '../../navigation/types';
 import { BubbleTint } from '../../components/ui/IconBubble';
 import { tontinesApi } from '../../lib/api/tontines';
+import { membersApi } from '../../lib/api/members';
 import { notificationsApi, type NotificationPreference } from '../../lib/api/notifications';
+import SignatureModal from '../../components/bureau/SignatureModal';
 import { useAuthStore } from '../../lib/stores/auth-store';
 import { logout } from '../../lib/auth/session';
 import { usePermissions } from '../../lib/hooks/use-permissions';
@@ -75,8 +77,12 @@ export default function ProfileScreen() {
   const user = useAuthStore((s) => s.user);
   const assoc = useAuthStore((s) => s.activeAssociation);
   const membership = useAuthStore((s) => s.currentMembership);
+  const setCurrentMembership = useAuthStore((s) => s.setCurrentMembership);
   const { isPresident, isBureau } = usePermissions();
   const qc = useQueryClient();
+
+  const [signVisible, setSignVisible] = React.useState(false);
+  const hasSignature = !!(membership?.has_signature || membership?.signature_reference);
 
   // Préférences de notification (le toggle reflète push_enabled côté serveur).
   const prefsQ = useQuery({
@@ -202,8 +208,17 @@ export default function ProfileScreen() {
         {/* Mon association */}
         <SectionLabel>Mon association</SectionLabel>
         <Card style={styles.card}>
-          <Row icon="business" tint="white" label="Mon adhésion" value={assoc?.name} first onPress={() => soon('Mon adhésion')} />
+          <Row icon="business" tint="white" label="Mon adhésion" value={assoc?.name} first onPress={() => navigation.navigate('MyAssociations')} />
           <Row icon="document-text" tint="white" label="Mes procurations" onPress={() => navigation.navigate('Procurations')} />
+          {membership ? (
+            <Row
+              icon="create-outline"
+              tint="white"
+              label="Ma signature"
+              value={hasSignature ? 'Enregistrée' : 'À ajouter'}
+              onPress={() => setSignVisible(true)}
+            />
+          ) : null}
         </Card>
 
         {/* Support */}
@@ -222,6 +237,28 @@ export default function ProfileScreen() {
 
         <Text style={styles.footer}>TontineX360 · TIM SARL · Douala</Text>
       </ScrollView>
+
+      {membership ? (
+        <SignatureModal
+          visible={signVisible}
+          onClose={() => setSignVisible(false)}
+          subject={{
+            title: hasSignature ? 'Modifier ma signature' : 'Enregistrer ma signature',
+            memberName: `${user?.first_name ?? ''} ${user?.last_name ?? ''}`.trim() || 'Ma signature',
+            contextLine: 'Signature de référence — servira à valider vos bordereaux.',
+          }}
+          referenceSignatureUrl={membership.signature_reference ?? null}
+          showReference={false}
+          note="Dessinez votre signature. Elle sera enregistrée comme référence et comparée lors de la signature de vos reçus."
+          primaryLabel="Enregistrer"
+          signFn={async (sig) => {
+            const updated = await membersApi.setSignature(membership.id, sig);
+            setCurrentMembership(updated);
+            qc.invalidateQueries({ queryKey: ['members'] });
+          }}
+          onSigned={() => setSignVisible(false)}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }

@@ -7,6 +7,10 @@ import NotificationsScreen from '../screens/app/NotificationsScreen';
 import EditProfileScreen from '../screens/app/EditProfileScreen';
 import ChangePasswordScreen from '../screens/app/ChangePasswordScreen';
 import SecurityScreen from '../screens/app/SecurityScreen';
+import MyAssociationsScreen from '../screens/app/MyAssociationsScreen';
+import CreateAssociationScreen from '../screens/workspace/CreateAssociationScreen';
+import JoinRequestScreen from '../screens/workspace/JoinRequestScreen';
+import MyJoinRequestsScreen from '../screens/workspace/MyJoinRequestsScreen';
 import AnnouncementDetailScreen from '../screens/app/AnnouncementDetailScreen';
 import EventDetailScreen from '../screens/app/EventDetailScreen';
 import SessionDetailScreen from '../screens/app/SessionDetailScreen';
@@ -43,6 +47,10 @@ export default function AppStack() {
       <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Modifier mon profil', ...detailHeader }} />
       <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ title: 'Changer le mot de passe', ...detailHeader }} />
       <Stack.Screen name="Security" component={SecurityScreen} options={{ title: 'Sécurité & connexion', ...detailHeader }} />
+      <Stack.Screen name="MyAssociations" component={MyAssociationsScreen} options={{ title: 'Mes associations', ...detailHeader }} />
+      <Stack.Screen name="CreateAssociation" component={CreateAssociationScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="JoinRequest" component={JoinRequestScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="MyJoinRequests" component={MyJoinRequestsScreen} options={{ headerShown: false }} />
       <Stack.Screen name="AnnouncementDetail" component={AnnouncementDetailScreen} options={{ title: 'Annonce', ...detailHeader }} />
       <Stack.Screen name="EventDetail" component={EventDetailScreen} options={{ title: 'Événement', ...detailHeader }} />
       <Stack.Screen name="SessionDetail" component={SessionDetailScreen} options={{ title: 'Séance', ...detailHeader }} />

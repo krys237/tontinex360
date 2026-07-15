@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 
 import type { WorkspaceStackParamList } from '../../navigation/types';
 import type { Association } from '../../lib/types/auth';
 import { useAuthStore } from '../../lib/stores/auth-store';
-import { switchAssociation, logout } from '../../lib/auth/session';
+import { switchAssociation, logout, refreshWorkspace } from '../../lib/auth/session';
+import { apiErrorMessage } from '../../lib/utils/errors';
 import { colors } from '../../theme/colors';
 import { font } from '../../theme/typography';
 import { radius, spacing } from '../../theme/spacing';
@@ -26,20 +28,49 @@ export default function ChooseAssociationScreen({ navigation }: Props) {
   const user = useAuthStore((s) => s.user);
   const associations = useAuthStore((s) => s.associations);
   const [loadingSlug, setLoadingSlug] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Re-synchronise la liste au focus : une nouvelle adhésion approuvée pendant la
+  // session s'ajoute ici sans devoir se reconnecter.
+  useFocusEffect(
+    React.useCallback(() => {
+      refreshWorkspace().catch(() => {});
+    }, []),
+  );
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refreshWorkspace();
+    } catch {
+      // silencieux : la liste actuelle reste affichée si le refetch échoue
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
 
   const onEnter = async (a: Association) => {
     setLoadingSlug(a.slug);
     try {
       await switchAssociation(a); // active association set -> RootNavigator switches to App
-    } catch {
-      Alert.alert('Erreur', "Impossible d'entrer dans cette association. Réessayez.");
+    } catch (e) {
+      Alert.alert(
+        'Erreur',
+        apiErrorMessage(e, "Impossible d'entrer dans cette association. Réessayez."),
+      );
       setLoadingSlug(null);
     }
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />
+        }
+      >
         {/* Hero */}
         <LinearGradient colors={[colors.primary, colors.green[600]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
           <Text style={styles.hello}>Bonjour {user?.first_name ?? ''}</Text>

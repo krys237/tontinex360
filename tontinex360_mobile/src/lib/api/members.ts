@@ -40,6 +40,15 @@ export const membersApi = {
   update: (id: string, data: Partial<Membership>) =>
     api.patch<Membership>(`/members/memberships/${id}/`, data).then((r) => r.data),
 
+  /**
+   * Enregistre (ou remplace) la signature de référence d'un membre.
+   * `signature` doit être une data-URL PNG ("data:image/png;base64,...").
+   * Le membre peut signer pour lui-même ; un responsable du bureau peut le
+   * faire à sa place. Backend : POST /members/memberships/{id}/signature/.
+   */
+  setSignature: (id: string, signature: string) =>
+    api.post<Membership>(`/members/memberships/${id}/signature/`, { signature }).then((r) => r.data),
+
   remove: (id: string) =>
     api.delete(`/members/memberships/${id}/`).then((r) => r.data),
 

@@ -15,8 +15,13 @@ export default function WorkspaceStack() {
   // sinon → écran de bienvenue (aucune association).
   const hasAssociations = useAuthStore((s) => s.associations.length > 0);
 
+  // `initialRouteName` n'est lu qu'au montage du navigateur. En le clefant sur
+  // `hasAssociations`, le passage 0 → ≥1 asso (ex. adhésion approuvée pendant la
+  // session) remonte le navigateur à neuf → il repart sur le bon écran initial
+  // (ChooseAssociation) au lieu de rester gelé sur NoAssociation.
   return (
     <Stack.Navigator
+      key={hasAssociations ? 'has' : 'none'}
       screenOptions={{ headerShown: false }}
       initialRouteName={hasAssociations ? 'ChooseAssociation' : 'NoAssociation'}
     >

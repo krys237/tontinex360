@@ -10,7 +10,8 @@ import { radius, spacing } from '../../theme/spacing';
 export interface SignSubject {
   title: string;
   memberName: string;
-  amount: string;
+  /** Montant mis en avant (bordereau). Omis pour l'enregistrement d'une signature de référence. */
+  amount?: string;
   contextLine?: string;
 }
 
@@ -26,6 +27,9 @@ export default function SignatureModal({
   signFn,
   onClose,
   onSigned,
+  note,
+  primaryLabel = 'Signer et générer',
+  showReference = true,
 }: {
   visible: boolean;
   subject: SignSubject;
@@ -33,6 +37,12 @@ export default function SignatureModal({
   signFn: (signature: string, deviceInfo: Record<string, any>) => Promise<any>;
   onClose: () => void;
   onSigned: () => void;
+  /** Texte d'avertissement sous le canvas (défaut : bordereau de réception). */
+  note?: string;
+  /** Libellé du bouton principal. */
+  primaryLabel?: string;
+  /** Masque le bloc « Signature de référence » (ex. quand on ENREGISTRE la référence). */
+  showReference?: boolean;
 }) {
   const ref = useRef<any>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -78,19 +88,23 @@ export default function SignatureModal({
           {/* Sujet */}
           <View style={styles.subjectBox}>
             <Text style={styles.subjectMember}>{subject.memberName}</Text>
-            <Text style={styles.subjectAmount}>{subject.amount}</Text>
+            {subject.amount ? <Text style={styles.subjectAmount}>{subject.amount}</Text> : null}
             {subject.contextLine ? <Text style={styles.subjectCtx}>{subject.contextLine}</Text> : null}
           </View>
 
           {/* Référence */}
-          <Text style={styles.fieldLabel}>Signature de référence</Text>
-          {referenceSignatureUrl ? (
-            <Image source={{ uri: referenceSignatureUrl }} style={styles.refImage} resizeMode="contain" />
-          ) : (
-            <View style={styles.refEmpty}>
-              <Text style={styles.refEmptyText}>Aucune signature de référence.</Text>
-            </View>
-          )}
+          {showReference ? (
+            <>
+              <Text style={styles.fieldLabel}>Signature de référence</Text>
+              {referenceSignatureUrl ? (
+                <Image source={{ uri: referenceSignatureUrl }} style={styles.refImage} resizeMode="contain" />
+              ) : (
+                <View style={styles.refEmpty}>
+                  <Text style={styles.refEmptyText}>Aucune signature de référence.</Text>
+                </View>
+              )}
+            </>
+          ) : null}
 
           {/* Signature du jour */}
           <Text style={styles.fieldLabel}>Signature du jour *</Text>
@@ -112,7 +126,8 @@ export default function SignatureModal({
           </Pressable>
 
           <Text style={styles.note}>
-            En signant, le bénéficiaire confirme l'opération. Un bordereau PDF horodaté avec hash d'intégrité sera généré.
+            {note ??
+              "En signant, le bénéficiaire confirme l'opération. Un bordereau PDF horodaté avec hash d'intégrité sera généré."}
           </Text>
 
           {/* Actions */}
@@ -128,7 +143,7 @@ export default function SignatureModal({
               {submitting ? (
                 <ActivityIndicator size="small" color={colors.white} />
               ) : (
-                <Text style={styles.btnPrimaryText}>Signer et générer</Text>
+                <Text style={styles.btnPrimaryText}>{primaryLabel}</Text>
               )}
             </Pressable>
           </View>
