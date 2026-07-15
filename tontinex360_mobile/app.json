@@ -18,6 +18,7 @@
     },
     "android": {
       "package": "com.tontinex360.app",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/logo/logo-icon.png",
         "backgroundColor": "#E6F3E6"

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, ActivityIndicator, Pressable } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery } from '@tanstack/react-query';
 
@@ -30,6 +31,7 @@ const STATUS: Record<AuctionBidStatus, { label: string; bg: string; fg: string; 
 };
 
 export default function MesEncheresScreen() {
+  const insets = useSafeAreaInsets();
   const membership = useAuthStore((s) => s.currentMembership);
   const myId = membership?.id;
   const { isBureau } = usePermissions();
@@ -69,7 +71,7 @@ export default function MesEncheresScreen() {
   return (
     <View style={styles.container}>
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + spacing.x3 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}>
         

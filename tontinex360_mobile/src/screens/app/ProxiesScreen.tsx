@@ -7,6 +7,7 @@ import {
   RefreshControl,
   Pressable,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -52,6 +53,7 @@ const STATUS: Record<ProxyStatus, { label: string; bg: string; fg: string; icon:
 type TabKey = 'mine' | 'received';
 
 export default function ProxiesScreen() {
+  const insets = useSafeAreaInsets();
   const qc = useQueryClient();
   const membership = useAuthStore((s) => s.currentMembership);
   const myId = membership?.id;
@@ -76,7 +78,7 @@ export default function ProxiesScreen() {
   return (
     <View style={styles.container}>
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + spacing.x3 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={proxiesQ.isRefetching} onRefresh={() => proxiesQ.refetch()} tintColor={colors.primary} />

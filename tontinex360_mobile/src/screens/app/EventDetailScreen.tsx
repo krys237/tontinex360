@@ -8,6 +8,7 @@ import {
   Linking,
   ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRoute, type RouteProp } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -44,6 +45,7 @@ function InfoLine({ icon, text }: { icon: React.ComponentProps<typeof Ionicons>[
 }
 
 export default function EventDetailScreen() {
+  const insets = useSafeAreaInsets();
   const { params } = useRoute<DetailRoute>();
   const qc = useQueryClient();
 
@@ -76,7 +78,7 @@ export default function EventDetailScreen() {
   const attachments = Array.isArray(e.attachments) ? e.attachments : [];
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scroll}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + spacing.x3 }]}>
       <View style={styles.metaRow}>
         <Chip label={typeLabel} tint="green" />
         {cancelled ? <Chip label="Annulé" tint="danger" /> : null}

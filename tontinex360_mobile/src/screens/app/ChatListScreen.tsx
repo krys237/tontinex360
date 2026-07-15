@@ -10,6 +10,7 @@ import {
   Modal,
   Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -40,6 +41,7 @@ function errMsg(e: any): string {
 }
 
 export default function ChatListScreen() {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const qc = useQueryClient();
   const myId = useAuthStore((s) => s.currentMembership?.id);
@@ -86,7 +88,7 @@ export default function ChatListScreen() {
       <FlatList
         data={conversations}
         keyExtractor={(c) => c.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + spacing.lg }]}
         refreshControl={
           <RefreshControl refreshing={listQ.isRefetching} onRefresh={listQ.refetch} tintColor={colors.primary} />
         }

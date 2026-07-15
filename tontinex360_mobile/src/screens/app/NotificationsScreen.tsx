@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { IconBubble } from '../../components/ui';
 import { notificationsApi } from '../../lib/api/notifications';
@@ -8,6 +9,7 @@ import { font } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 
 export default function NotificationsScreen() {
+  const insets = useSafeAreaInsets();
   const qc = useQueryClient();
   const listQ = useQuery({ queryKey: ['notifications', 'all'], queryFn: () => notificationsApi.list() });
 
@@ -31,7 +33,7 @@ export default function NotificationsScreen() {
       <FlatList
         data={data}
         keyExtractor={(n) => n.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + spacing.lg }]}
         refreshControl={
           <RefreshControl refreshing={listQ.isRefetching} onRefresh={listQ.refetch} tintColor={colors.primary} />
         }

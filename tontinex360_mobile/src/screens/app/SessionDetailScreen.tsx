@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRoute, type RouteProp } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -38,6 +39,7 @@ function InfoLine({ icon, text }: { icon: React.ComponentProps<typeof Ionicons>[
 }
 
 export default function SessionDetailScreen() {
+  const insets = useSafeAreaInsets();
   const { params } = useRoute<DetailRoute>();
   const qc = useQueryClient();
 
@@ -68,7 +70,7 @@ export default function SessionDetailScreen() {
   const timeLabel = s.start_time ? `${hhmm(s.start_time)}${s.end_time ? ` - ${hhmm(s.end_time)}` : ''}` : '';
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scroll}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + spacing.x3 }]}>
       <View style={styles.metaRow}>
         <Chip label="Séance" tint="green" />
         <Chip label={status.label} tint={status.tint} />
