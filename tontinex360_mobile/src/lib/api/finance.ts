@@ -39,8 +39,16 @@ export const financeApi = {
       .then((r) => r.data);
   },
 
-  updateContribution: (id: string, data: Partial<Contribution>) =>
-    api.patch<Contribution>(`/finance/contributions/${id}/`, data).then((r) => r.data),
+  updateContribution: (id: string, data: Partial<Contribution> | FormData) => {
+    // Accepte un FormData pour re-soumettre une cotisation rejetée avec un
+    // nouveau justificatif photo (multipart, comme createContribution).
+    const isForm = typeof FormData !== 'undefined' && data instanceof FormData;
+    return api
+      .patch<Contribution>(`/finance/contributions/${id}/`, data, {
+        headers: isForm ? { 'Content-Type': 'multipart/form-data' } : undefined,
+      })
+      .then((r) => r.data);
+  },
 
   signContributionReceipt: (id: string, signature: string, deviceInfo?: Record<string, any>) =>
     api

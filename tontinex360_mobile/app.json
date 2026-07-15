@@ -2,7 +2,7 @@
   "expo": {
     "name": "TontineX360",
     "slug": "tontinex360",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./src/assets/logo/logo-icon.png",
     "scheme": "tontinex360",
@@ -18,7 +18,7 @@
     },
     "android": {
       "package": "com.tontinex360.app",
-      "versionCode": 1,
+      "versionCode": 2,
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/logo/logo-icon.png",
         "backgroundColor": "#E6F3E6"

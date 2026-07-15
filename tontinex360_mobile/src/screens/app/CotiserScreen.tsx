@@ -63,18 +63,36 @@ export default function CotiserScreen() {
     queryFn: () => financeApi.contributions({ membership: membershipId, tontine_type: tontineTypeId }),
   });
 
-  const paidSessionIds = useMemo(
-    () => new Set((existingQ.data ?? []).map((c) => c.session)),
+  // Une séance est bloquée UNIQUEMENT si sa cotisation n'est pas rejetée.
+  // Une cotisation rejetée par le trésorier peut être re-soumise pour la MÊME
+  // séance → on ne la compte pas comme "déjà cotisée".
+  const blockedSessionIds = useMemo(
+    () =>
+      new Set(
+        (existingQ.data ?? [])
+          .filter((c) => c.status !== 'rejected')
+          .map((c) => c.session),
+      ),
     [existingQ.data],
   );
 
-  // Sessions the member can still pay for (no contribution yet), earliest first.
+  // Séance → id de la cotisation rejetée (pour re-soumettre via PATCH plutôt que
+  // recréer : la contrainte d'unicité backend interdit une 2e cotisation).
+  const rejectedBySession = useMemo(() => {
+    const m = new Map<string, string>();
+    (existingQ.data ?? []).forEach((c) => {
+      if (c.status === 'rejected') m.set(c.session, c.id);
+    });
+    return m;
+  }, [existingQ.data]);
+
+  // Sessions the member can still pay for (no active contribution yet), earliest first.
   const payableSessions = useMemo(
     () =>
       (sessionsQ.data ?? [])
-        .filter((s) => s.status !== 'cancelled' && !paidSessionIds.has(s.id))
+        .filter((s) => s.status !== 'cancelled' && !blockedSessionIds.has(s.id))
         .sort((a, b) => (a.date ?? '').localeCompare(b.date ?? '')),
-    [sessionsQ.data, paidSessionIds],
+    [sessionsQ.data, blockedSessionIds],
   );
 
   const selectedSession =
@@ -146,7 +164,15 @@ export default function CotiserScreen() {
       const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
       form.append('contribution_justification', { uri: proofUri, name: fileName, type: mime } as any);
 
-      await financeApi.createContribution(form);
+      // Si une cotisation a été REJETÉE pour cette séance, la re-soumission passe
+      // par un PATCH (la contrainte d'unicité session+membre+type interdit une
+      // 2e création). Sinon, création classique.
+      const rejectedId = rejectedBySession.get(selectedSession.id);
+      if (rejectedId) {
+        await financeApi.updateContribution(rejectedId, form);
+      } else {
+        await financeApi.createContribution(form);
+      }
       qc.invalidateQueries({ queryKey: ['contributions'] });
       qc.invalidateQueries({ queryKey: ['wallet'] });
       setStep(2);
