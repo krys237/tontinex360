@@ -143,12 +143,14 @@ export interface TontineBalances {
 }
 
 // ---------- Remboursements ----------
+export type LoanRepaymentStatus = 'submitted' | 'paid' | 'rejected';
+
 export interface LoanRepayment {
   id: string;
   loan: string;
   session?: string | null;
   amount: number | string;
-  paid_at: string;
+  paid_at?: string | null;
   payment_method?: string;
   notes?: string;
   receipt_number?: string;
@@ -156,6 +158,14 @@ export interface LoanRepayment {
   receipt_hash?: string;
   receipt_signed_at?: string | null;
   has_receipt?: boolean;
+  // ── Workflow soumission → validation ──
+  status?: LoanRepaymentStatus;
+  submitted_justification?: string | null;
+  submitted_at?: string | null;
+  validated_at?: string | null;
+  rejected_at?: string | null;
+  rejection_reason?: string;
+  borrower_name?: string;
 }
 
 // ---------- Trésorerie ----------

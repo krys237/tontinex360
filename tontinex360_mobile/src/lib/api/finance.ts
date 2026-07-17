@@ -144,6 +144,47 @@ export const financeApi = {
   loans: (params?: Record<string, string>) =>
     api.get<Loan[] | Paginated<Loan>>('/finance/loans/', { params }).then((r) => unwrap(r.data)),
 
+  /** Prêts du membre courant (tous statuts). */
+  myLoans: () =>
+    api.get<Loan[] | Paginated<Loan>>('/finance/loans/mine/').then((r) => unwrap(r.data)),
+
+  /** Le membre soumet un remboursement (statut → submitted, awaits bureau).
+   *  Preuve photo optionnelle jointe en multipart. */
+  repayLoan: (
+    loanId: string,
+    amount: number | string,
+    paymentMethod = 'mobile_money',
+    proof?: { uri: string; name: string; type: string } | null,
+  ) => {
+    const url = `/finance/loans/${loanId}/repay/`;
+    if (proof) {
+      const form = new FormData();
+      form.append('amount', String(amount));
+      form.append('payment_method', paymentMethod);
+      form.append('submitted_justification', proof as any);
+      return api
+        .post<LoanRepayment>(url, form, { headers: { 'Content-Type': 'multipart/form-data' } })
+        .then((r) => r.data);
+    }
+    return api
+      .post<LoanRepayment>(url, { amount, payment_method: paymentMethod })
+      .then((r) => r.data);
+  },
+
+  /** Bureau : valide un remboursement soumis. */
+  validateLoanRepayment: (id: string) =>
+    api.post<LoanRepayment>(`/finance/loan-repayments/${id}/validate/`).then((r) => r.data),
+
+  /** Bureau : rejette un remboursement soumis (motif ≥ 5). */
+  rejectLoanRepayment: (id: string, reason: string) =>
+    api.post<LoanRepayment>(`/finance/loan-repayments/${id}/reject/`, { reason }).then((r) => r.data),
+
+  /** Bureau : file d'attente des remboursements à valider. */
+  loanRepaymentsToValidate: () =>
+    api
+      .get<LoanRepayment[] | Paginated<LoanRepayment>>('/finance/loan-repayments/to-validate/')
+      .then((r) => unwrap(r.data)),
+
   getLoan: (id: string) => api.get<Loan>(`/finance/loans/${id}/`).then((r) => r.data),
 
   createLoan: (data: Partial<Loan>) =>
