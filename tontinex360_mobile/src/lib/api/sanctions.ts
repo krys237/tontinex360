@@ -14,7 +14,13 @@ export interface SanctionType {
   is_active: boolean;
 }
 
-export type SanctionStatus = 'pending' | 'paid' | 'waived' | 'contested';
+export type SanctionStatus =
+  | 'pending'
+  | 'submitted'
+  | 'paid'
+  | 'rejected'
+  | 'waived'
+  | 'contested';
 
 export interface Sanction {
   id: string;
@@ -30,6 +36,13 @@ export interface Sanction {
   applied_by?: string | null;
   created_at?: string;
   has_receipt?: boolean;
+  // ── Workflow paiement self-service (soumettre → valider/rejeter) ──
+  payment_method?: string;
+  submitted_justification?: string | null;
+  submitted_at?: string | null;
+  validated_at?: string | null;
+  rejected_at?: string | null;
+  rejection_reason?: string;
 }
 
 export const sanctionsApi = {
@@ -56,4 +69,36 @@ export const sanctionsApi = {
     api
       .post<Sanction>(`/sanctions/sanctions/${id}/sign_receipt/`, { signature, device_info: deviceInfo ?? {} })
       .then((r) => r.data),
+
+  // ── Self-service membre : soumettre → valider/rejeter (bureau) ──
+  /** Sanctions du membre courant. */
+  mySanctions: () =>
+    api.get<Sanction[] | Paginated<Sanction>>('/sanctions/sanctions/mine/').then((r) => unwrap(r.data)),
+
+  /** Le membre soumet le paiement d'une sanction (statut → submitted). Preuve
+   *  photo optionnelle jointe en multipart. Le bureau valide ensuite. */
+  submitPayment: (
+    id: string,
+    paymentMethod: string,
+    proof?: { uri: string; name: string; type: string } | null,
+  ) => {
+    const url = `/sanctions/sanctions/${id}/pay/`;
+    if (proof) {
+      const form = new FormData();
+      form.append('payment_method', paymentMethod);
+      form.append('submitted_justification', proof as any);
+      return api
+        .post<Sanction>(url, form, { headers: { 'Content-Type': 'multipart/form-data' } })
+        .then((r) => r.data);
+    }
+    return api.post<Sanction>(url, { payment_method: paymentMethod }).then((r) => r.data);
+  },
+
+  /** Bureau : valide un paiement soumis (→ paid + distribution). */
+  validatePayment: (id: string) =>
+    api.post<Sanction>(`/sanctions/sanctions/${id}/validate_payment/`).then((r) => r.data),
+
+  /** Bureau : rejette un paiement soumis (motif ≥ 5 caractères). */
+  rejectPayment: (id: string, reason: string) =>
+    api.post<Sanction>(`/sanctions/sanctions/${id}/reject_payment/`, { reason }).then((r) => r.data),
 };
