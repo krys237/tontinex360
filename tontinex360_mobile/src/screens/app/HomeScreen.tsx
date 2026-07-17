@@ -211,7 +211,7 @@ export default function HomeScreen() {
         {/* ---------- Late-payment alert (kept from previous dashboard) ---------- */}
         {lateCount > 0 ? (
           <Pressable
-            onPress={() => navigation.navigate('Finances')}
+            onPress={() => navigation.navigate('Regulariser')}
             style={({ pressed }) => [styles.alert, pressed && styles.pressed]}>
             <Ionicons name="alert-circle" size={20} color={colors.danger} />
             <Text style={styles.alertText}>

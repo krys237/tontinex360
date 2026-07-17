@@ -119,6 +119,7 @@ export type AppStackParamList = {
   MesPrets: undefined;
   MesSanctions: undefined;
   Auctions: undefined;
+  Regulariser: undefined;
   Cotiser: {
     membershipId: string;
     tontineTypeId: string;

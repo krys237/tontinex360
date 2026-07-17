@@ -26,6 +26,7 @@ import MesVersementsScreen from '../screens/app/MesVersementsScreen';
 import MesPretsScreen from '../screens/app/MesPretsScreen';
 import MesSanctionsScreen from '../screens/app/MesSanctionsScreen';
 import AuctionsScreen from '../screens/app/AuctionsScreen';
+import RegulariserScreen from '../screens/app/RegulariserScreen';
 import CotiserScreen from '../screens/app/CotiserScreen';
 import { colors } from '../theme/colors';
 import { font } from '../theme/typography';
@@ -73,6 +74,7 @@ export default function AppStack() {
       <Stack.Screen name="MesPrets" component={MesPretsScreen} options={{ title: 'Mes prêts', ...detailHeader }} />
       <Stack.Screen name="MesSanctions" component={MesSanctionsScreen} options={{ title: 'Mes sanctions', ...detailHeader }} />
       <Stack.Screen name="Auctions" component={AuctionsScreen} options={{ title: 'Enchères', ...detailHeader }} />
+      <Stack.Screen name="Regulariser" component={RegulariserScreen} options={{ title: 'Régulariser', ...detailHeader }} />
       <Stack.Screen name="Cotiser" component={CotiserScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );

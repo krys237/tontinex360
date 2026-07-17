@@ -91,13 +91,34 @@ export const financeApi = {
       .then((r) => r.data),
 
   /** Demande de correction d'un montant déjà comptabilisé (→ double validation). */
-  requestContributionCorrection: (contributionId: string, newPaidAmount: number, reason: string) =>
-    api
-      .post<ContributionCorrectionRequest>(
-        `/finance/contributions/${contributionId}/request-correction/`,
-        { new_paid_amount: newPaidAmount, reason },
-      )
-      .then((r) => r.data),
+  /**
+   * Demande de correction (double validation). Accepte une preuve photo optionnelle
+   * jointe en multipart sous `submitted_justification`.
+   * ⚠️ Le backend actuel ne stocke pas encore ce fichier (à ajouter côté serveur,
+   * cf. pattern sanctions/prêts) — le montant + motif, eux, sont bien pris en compte.
+   */
+  requestContributionCorrection: (
+    contributionId: string,
+    newPaidAmount: number,
+    reason: string,
+    proof?: { uri: string; name: string; type: string } | null,
+  ) => {
+    const url = `/finance/contributions/${contributionId}/request-correction/`;
+    if (proof) {
+      const form = new FormData();
+      form.append('new_paid_amount', String(newPaidAmount));
+      form.append('reason', reason);
+      form.append('submitted_justification', proof as any);
+      return api
+        .post<ContributionCorrectionRequest>(url, form, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        })
+        .then((r) => r.data);
+    }
+    return api
+      .post<ContributionCorrectionRequest>(url, { new_paid_amount: newPaidAmount, reason })
+      .then((r) => r.data);
+  },
 
   correctionRequests: (params?: { status?: string; contribution?: string }) =>
     api

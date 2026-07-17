@@ -22,6 +22,13 @@ export interface Contribution {
   payment_method?: string;
   paid_at?: string;
   created_at?: string;
+  /** Motif de rejet (renseigné quand status = rejected). */
+  rejection_reason?: string;
+  /** Contexte séance (exposé par le serializer) : sert à choisir re-cotiser
+   *  (séance ouverte) vs demander une correction (séance clôturée). */
+  session_status?: 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'postponed' | '';
+  session_number?: number;
+  session_date?: string | null;
   /** Justificatif de paiement joint par le membre (self-service). */
   contribution_justification?: string | null;
   /** False tant que le trésorier n'a pas inspecté le justificatif. */
