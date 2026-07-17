@@ -3,7 +3,10 @@ import { View, Text, StyleSheet, ScrollView, RefreshControl, ActivityIndicator, 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
+import type { AppStackParamList } from '../../navigation/types';
 import { Card } from '../../components/ui';
 import { cyclesApi } from '../../lib/api/cycles';
 import { useAuthStore } from '../../lib/stores/auth-store';
@@ -32,6 +35,7 @@ const STATUS: Record<AuctionBidStatus, { label: string; bg: string; fg: string; 
 
 export default function MesEncheresScreen() {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
   const membership = useAuthStore((s) => s.currentMembership);
   const myId = membership?.id;
   const { isBureau } = usePermissions();
@@ -95,6 +99,16 @@ export default function MesEncheresScreen() {
             </View>
           </View>
         </Card>
+
+        {/* CTA — participer aux enchères ouvertes */}
+        <Pressable style={styles.bidCta} onPress={() => navigation.navigate('Auctions')}>
+          <Ionicons name="hammer" size={20} color={colors.white} />
+          <View style={styles.bidCtaText}>
+            <Text style={styles.bidCtaTitle}>Enchères ouvertes</Text>
+            <Text style={styles.bidCtaSub}>Placer une enchère sur un lot en jeu</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.white} />
+        </Pressable>
 
         {/* Role-based Tabs (Bureau View) */}
         {isBureau && (
@@ -191,6 +205,10 @@ const styles = StyleSheet.create({
   loader: { marginTop: spacing.x2 },
 
   summary: { borderRadius: radius.lg, padding: spacing.lg, ...cardShadow },
+  bidCta: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.primary, borderRadius: radius.lg, padding: spacing.lg, ...cardShadow },
+  bidCtaText: { flex: 1 },
+  bidCtaTitle: { fontSize: font.size.md, fontWeight: font.bold, color: colors.white },
+  bidCtaSub: { fontSize: font.size.xs, color: 'rgba(255,255,255,0.85)', marginTop: 1 },
   summaryTitle: { fontSize: font.size.sm, fontWeight: font.semibold, color: colors.textMuted, marginBottom: spacing.md },
   statsGrid: { flexDirection: 'row', alignItems: 'center' },
   statCol: { flex: 1, alignItems: 'center', gap: 4 },

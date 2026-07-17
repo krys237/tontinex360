@@ -50,4 +50,19 @@ export const potsApi = {
     api
       .get<AuctionBid[] | Paginated<AuctionBid>>('/cycles/bids/', { params: { pot: potId } })
       .then((r) => unwrap(r.data)),
+
+  /** Le membre place une enchère. Refusé backend si enchères pas ouvertes ou
+   *  shares_requested > shares_offered. */
+  placeBid: (data: {
+    pot: string;
+    membership: string;
+    bid_amount: number | string;
+    shares_requested?: number | string;
+  }) => api.post<AuctionBid>('/cycles/bids/', data).then((r) => r.data),
+
+  /** Le bureau ouvre les enchères d'un pot en mettant N noms en jeu. */
+  startBidding: (potId: string, sharesOffered: number | string = 1) =>
+    api
+      .post<SessionPot>(`/cycles/pots/${potId}/start-bidding/`, { shares_offered: sharesOffered })
+      .then((r) => r.data),
 };

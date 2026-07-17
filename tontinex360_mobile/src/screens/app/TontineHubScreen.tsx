@@ -14,6 +14,7 @@ import { tontinesApi } from '../../lib/api/tontines';
 import { cyclesApi } from '../../lib/api/cycles';
 import { financeApi } from '../../lib/api/finance';
 import { proxiesApi } from '../../lib/api/proxies';
+import { sanctionsApi } from '../../lib/api/sanctions';
 import { useAuthStore } from '../../lib/stores/auth-store';
 import { formatNumber } from '../../lib/utils/format';
 import { colors } from '../../theme/colors';
@@ -58,15 +59,21 @@ export default function TontineHubScreen() {
     queryKey: ['loans', 'mine', myId ?? null],
     queryFn: () => financeApi.loans(myId ? { membership: myId } : undefined),
   });
+  const sanctionsQ = useQuery({
+    queryKey: ['sanctions', 'mine', myId ?? null],
+    queryFn: () => sanctionsApi.list(myId ? { membership: myId } : undefined),
+  });
 
   const refreshing =
-    subsQ.isRefetching || bidsQ.isRefetching || contribQ.isRefetching || proxiesQ.isRefetching || loansQ.isRefetching;
+    subsQ.isRefetching || bidsQ.isRefetching || contribQ.isRefetching || proxiesQ.isRefetching ||
+    loansQ.isRefetching || sanctionsQ.isRefetching;
   const onRefresh = () => {
     subsQ.refetch();
     bidsQ.refetch();
     contribQ.refetch();
     proxiesQ.refetch();
     loansQ.refetch();
+    sanctionsQ.refetch();
   };
 
   // Données prêt pour la hero-card
@@ -85,6 +92,9 @@ export default function TontineHubScreen() {
   const proxiesCount = (proxiesQ.data ?? []).filter(
     (p) => p.grantor === myId && p.status !== 'rejected' && p.status !== 'cancelled',
   ).length;
+  const loansCount = loans.length;
+  const sanctions = sanctionsQ.data ?? [];
+  const pendingSanctions = sanctions.filter((s) => s.status === 'pending').length;
 
   const folders: {
     title: string;
@@ -128,6 +138,24 @@ export default function TontineHubScreen() {
         value: String(proxiesCount),
         sub: proxiesCount > 1 ? 'en cours' : 'procuration',
         dest: 'Procurations',
+        variant: 'inline',
+        palette: { base: colors.green[600], s1: colors.primary, s2: '#6BA45C', fg: colors.white },
+      },
+      {
+        title: 'Mes prêts',
+        icon: 'cash-outline',
+        value: String(loansCount),
+        sub: loansCount > 1 ? 'prêts' : 'prêt',
+        dest: 'MesPrets',
+        variant: 'inline',
+        palette: { base: colors.green[600], s1: colors.primary, s2: '#6BA45C', fg: colors.white },
+      },
+      {
+        title: 'Mes sanctions',
+        icon: 'alert-circle-outline',
+        value: String(sanctions.length),
+        sub: pendingSanctions > 0 ? `${pendingSanctions} à régler` : (sanctions.length > 1 ? 'sanctions' : 'sanction'),
+        dest: 'MesSanctions',
         variant: 'inline',
         palette: { base: colors.green[600], s1: colors.primary, s2: '#6BA45C', fg: colors.white },
       },

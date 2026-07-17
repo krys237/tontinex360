@@ -36,6 +36,7 @@ export default function BureauPotDetailScreen() {
   const { id } = useRoute<Rt>().params;
   const qc = useQueryClient();
   const [bid, setBid] = useState('');
+  const [sharesOffered, setSharesOffered] = useState('1');
 
   const potQ = useQuery({ queryKey: ['bureau', 'pot', id], queryFn: () => potsApi.get(id) });
   const sessionId = potQ.data?.session;
@@ -71,6 +72,14 @@ export default function BureauPotDetailScreen() {
     onSuccess: () => {
       setBid('');
       invalidate();
+    },
+    onError: (e) => Alert.alert('Erreur', errMsg(e)),
+  });
+  const startBiddingMut = useMutation({
+    mutationFn: () => potsApi.startBidding(id, Number(sharesOffered) || 1),
+    onSuccess: () => {
+      invalidate();
+      Alert.alert('Enchères ouvertes', 'Les membres peuvent désormais placer leurs enchères.');
     },
     onError: (e) => Alert.alert('Erreur', errMsg(e)),
   });
@@ -160,6 +169,39 @@ export default function BureauPotDetailScreen() {
           </>
         ) : null}
 
+        {/* Ouvrir les enchères (gate) */}
+        {isAuction && !p.is_closed && !p.is_bidding_open ? (
+          <RequirePermission bureau>
+            <Text style={styles.sectionLabel}>Ouvrir les enchères</Text>
+            <Text style={styles.muted}>
+              Mettez un ou plusieurs « noms » en jeu. Les membres pourront ensuite placer leurs enchères.
+            </Text>
+            <TextField
+              label="Noms mis en jeu"
+              value={sharesOffered}
+              onChangeText={setSharesOffered}
+              placeholder="Ex : 1"
+              keyboardType="numeric"
+            />
+            <PrimaryButton
+              title="Ouvrir les enchères"
+              onPress={() => startBiddingMut.mutate()}
+              loading={startBiddingMut.isPending}
+              disabled={!(Number(sharesOffered) > 0)}
+              style={{ marginTop: spacing.sm }}
+            />
+          </RequirePermission>
+        ) : null}
+
+        {isAuction && !p.is_closed && p.is_bidding_open ? (
+          <View style={styles.openBanner}>
+            <IconBubble icon="hammer" tint="accent" size={32} />
+            <Text style={styles.openBannerText}>
+              Enchères ouvertes · {String(p.shares_offered ?? '')} nom(s) en jeu
+            </Text>
+          </View>
+        ) : null}
+
         {/* Distribution */}
         {!p.is_closed ? (
           <RequirePermission bureau>
@@ -238,6 +280,8 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   scroll: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.x5 },
   muted: { color: colors.textMuted, fontSize: font.size.sm, textAlign: 'center' },
+  openBanner: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.greenBg, borderRadius: radius.lg, padding: spacing.md, marginTop: spacing.sm },
+  openBannerText: { flex: 1, fontSize: font.size.sm, fontWeight: font.semibold, color: colors.primary },
 
   headCard: {},
   headRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },

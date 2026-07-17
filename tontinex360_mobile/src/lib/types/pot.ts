@@ -50,6 +50,19 @@ export interface SessionPot {
   is_closed: boolean;
   payouts: BeneficiaryPayout[];
   created_at: string;
+  // ── Enchères (gate d'ouverture par le bureau) ──
+  /** True quand le bureau a ouvert les enchères ET le pot n'est pas clôturé. */
+  is_bidding_open?: boolean;
+  /** Nombre de "noms" (parts) mis en jeu par le bureau (0 = pas encore ouvert). */
+  shares_offered?: number | string;
+  bidding_started_at?: string | null;
+  bidding_started_by?: string | null;
+  /** Valeur d'un lot par part — sert à calculer le lot cible d'une enchère. */
+  lot_per_share?: number | string;
+  value_per_share?: number | string;
+  /** Parts encore servables sur ce pot. */
+  shares_remaining?: number | string;
+  shares_servable?: number | string;
 }
 
 // Lots distribuables calculés pour une séance, par type de tontine.

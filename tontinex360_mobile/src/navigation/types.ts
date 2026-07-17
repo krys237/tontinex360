@@ -35,6 +35,7 @@ export type AppTabsParamList = {
 // Bureau (espace exécutif) — stack séparé, poussé depuis l'espace membre.
 export type BureauStackParamList = {
   BureauDashboard: undefined;
+  BureauSearch: undefined;
   BureauOverview: undefined;
   // Phase 2 — Membres
   BureauMembers: undefined;
@@ -115,6 +116,9 @@ export type AppStackParamList = {
   MesTontines: undefined;
   MesEncheres: undefined;
   MesVersements: undefined;
+  MesPrets: undefined;
+  MesSanctions: undefined;
+  Auctions: undefined;
   Cotiser: {
     membershipId: string;
     tontineTypeId: string;

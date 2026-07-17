@@ -86,11 +86,20 @@ export default function CotiserScreen() {
     return m;
   }, [existingQ.data]);
 
-  // Sessions the member can still pay for (no active contribution yet), earliest first.
+  // Sessions the member can still pay for, earliest first.
+  // On EXCLUT les séances clôturées ('completed') et annulées ('cancelled') :
+  // le backend verrouille la cotisation dessus (assert_session_open). Une séance
+  // clôturée non payée devient un impayé à régulariser via l'écran Régulariser,
+  // PAS une cotisation normale.
   const payableSessions = useMemo(
     () =>
       (sessionsQ.data ?? [])
-        .filter((s) => s.status !== 'cancelled' && !blockedSessionIds.has(s.id))
+        .filter(
+          (s) =>
+            s.status !== 'cancelled' &&
+            s.status !== 'completed' &&
+            !blockedSessionIds.has(s.id),
+        )
         .sort((a, b) => (a.date ?? '').localeCompare(b.date ?? '')),
     [sessionsQ.data, blockedSessionIds],
   );
