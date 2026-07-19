@@ -2,7 +2,7 @@
   "expo": {
     "name": "TontineX360",
     "slug": "tontinex360",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./src/assets/logo/logo-icon.png",
     "scheme": "tontinex360",
@@ -18,7 +18,8 @@
     },
     "android": {
       "package": "com.tontinex360.app",
-      "versionCode": 2,
+      "versionCode": 3,
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/logo/logo-icon.png",
         "backgroundColor": "#E6F3E6"
@@ -38,7 +39,9 @@
           "photosPermission": "TontineX360 accède à vos photos pour joindre une preuve de paiement.",
           "cameraPermission": "TontineX360 utilise l'appareil photo pour prendre une preuve de paiement."
         }
-      ]
+      ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging"
     ]
   }
 }

@@ -1,9 +1,9 @@
 {
   "_comment": "Manifeste de version de l'app TontineX360 (hors stores). Heberge ce fichier (GitHub raw, gist, bucket...) et mets son URL dans src/config/env.ts -> APP_VERSION_MANIFEST_URL. Pour publier une MAJ : bump 'latest_version', renseigne 'apk_url' et 'notes'. 'min_supported_version' non vide force la MAJ pour les versions plus anciennes.",
   "android": {
-    "latest_version": "1.0.1",
+    "latest_version": "1.1.0",
     "min_supported_version": "",
-    "apk_url": "https://github.com/krys237/tontinex360/releases/download/v1.0.1/tontinex360-1.0.1.apk",
-    "notes": "Correction : vous pouvez de nouveau cotiser une séance après le rejet d'une cotisation."
+    "apk_url": "https://github.com/krys237/tontinex360/releases/download/v1.1.0/tontinex360-1.1.0.apk",
+    "notes": "• Recherche globale dans l'espace Bureau\n• Enregistrement et réception des notifications push\n• Améliorations et corrections d'affichage diverses"
   }
 }

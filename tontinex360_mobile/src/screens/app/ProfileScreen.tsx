@@ -19,6 +19,7 @@ import SignatureModal from '../../components/bureau/SignatureModal';
 import { useAuthStore } from '../../lib/stores/auth-store';
 import { logout } from '../../lib/auth/session';
 import { usePermissions } from '../../lib/hooks/use-permissions';
+import { APP_VERSION } from '../../config/env';
 import { colors } from '../../theme/colors';
 import { font } from '../../theme/typography';
 import { spacing, radius } from '../../theme/spacing';
@@ -226,7 +227,7 @@ export default function ProfileScreen() {
         <Card style={styles.card}>
           <Row icon="help-circle" tint="white" label="Aide & FAQ" first onPress={() => soon('Aide & FAQ')} />
           <Row icon="document-text" tint="white" label="Conditions d'utilisation" onPress={() => soon("Conditions d'utilisation")} />
-          <Row icon="information-circle" tint="white" label="À propos" value="v1.0.0" onPress={() => soon('À propos')} />
+          <Row icon="information-circle" tint="white" label="À propos" value={`v${APP_VERSION}`} onPress={() => soon('À propos')} />
         </Card>
 
         {/* Logout */}
