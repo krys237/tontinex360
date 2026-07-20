@@ -16,6 +16,9 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import TabsRow from '../../components/bureau/TabsRow';
 import StatusChip from '../../components/bureau/StatusChip';
+import SearchBar from '../../components/bureau/SearchBar';
+import SearchCapNotice from '../../components/bureau/SearchCapNotice';
+import { useClientSearch } from '../../lib/search/use-client-search';
 import { IconBubble } from '../../components/ui';
 import type { BureauStackParamList } from '../../navigation/types';
 import { approvalsApi } from '../../lib/api/approvals';
@@ -51,7 +54,12 @@ export default function BureauApprovalsScreen() {
     { key: 'all', label: 'Toutes' },
   ];
 
-  const items = q.data ?? [];
+  const { query, setQuery, filtered, capped, hasQuery } = useClientSearch(q.data, (a) => [
+    actionLabel(a.action_type),
+    a.summary,
+    a.requested_by_name,
+    approvalStatus(a.status).label,
+  ]);
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -62,19 +70,29 @@ export default function BureauApprovalsScreen() {
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl refreshing={q.isRefetching} onRefresh={() => q.refetch()} tintColor={colors.primary} />
         }
       >
+        {!q.isLoading && (q.data ?? []).length > 0 ? (
+          <>
+            <SearchBar value={query} onChangeText={setQuery} placeholder="Rechercher (type, demandeur…)" />
+            <SearchCapNotice visible={capped} />
+          </>
+        ) : null}
+
         {q.isLoading ? (
           <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.x3 }} />
-        ) : items.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <View style={styles.empty}>
             <IconBubble icon="checkmark-done-circle-outline" tint="lime" size={56} />
-            <Text style={styles.emptyText}>Aucune demande dans cette catégorie.</Text>
+            <Text style={styles.emptyText}>
+              {hasQuery ? `Aucune demande pour « ${query.trim()} ».` : 'Aucune demande dans cette catégorie.'}
+            </Text>
           </View>
         ) : (
-          items.map((a) => {
+          filtered.map((a) => {
             const st = approvalStatus(a.status);
             const isPending = a.status === 'pending' || a.status === 'pres_approved' || a.status === 'bureau_approved';
             return (

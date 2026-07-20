@@ -17,6 +17,9 @@ import TabsRow from '../../components/bureau/TabsRow';
 import StatusChip, { StatusTone } from '../../components/bureau/StatusChip';
 import MemberPicker from '../../components/bureau/MemberPicker';
 import ChipSelect from '../../components/bureau/ChipSelect';
+import SearchBar from '../../components/bureau/SearchBar';
+import SearchCapNotice from '../../components/bureau/SearchCapNotice';
+import { useClientSearch } from '../../lib/search/use-client-search';
 import RequirePermission from '../../components/bureau/RequirePermission';
 import { Card, TextField, PrimaryButton, IconBubble } from '../../components/ui';
 import { walletsApi } from '../../lib/api/wallets';
@@ -121,6 +124,7 @@ export default function BureauWalletsScreen() {
   });
 
   const wallets = walletsQ.data ?? [];
+  const walletSearch = useClientSearch(walletsQ.data, (w) => [w.member_name, w.member_number]);
   const settlement = settlementQ.data?.rows ?? [];
   const totals = useMemo(() => {
     const t = settlementQ.data?.totals;
@@ -155,7 +159,13 @@ export default function BureauWalletsScreen() {
           ) : wallets.length === 0 ? (
             <Empty icon="wallet-outline" text="Aucun portefeuille." />
           ) : (
-            wallets.map((w) => {
+            <>
+            <SearchBar value={walletSearch.query} onChangeText={walletSearch.setQuery} placeholder="Rechercher un membre…" />
+            <SearchCapNotice visible={walletSearch.capped} />
+            {walletSearch.filtered.length === 0 ? (
+              <Empty icon="wallet-outline" text={`Aucun portefeuille pour « ${walletSearch.query.trim()} ».`} />
+            ) : null}
+            {walletSearch.filtered.map((w) => {
               const net = Number(w.balance) || 0;
               return (
                 <View key={w.id} style={styles.card}>
@@ -183,7 +193,8 @@ export default function BureauWalletsScreen() {
                   </View>
                 </View>
               );
-            })
+            })}
+            </>
           )
         ) : null}
 

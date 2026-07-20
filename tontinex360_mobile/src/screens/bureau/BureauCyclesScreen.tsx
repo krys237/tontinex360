@@ -18,6 +18,9 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import TabsRow from '../../components/bureau/TabsRow';
 import StatusChip from '../../components/bureau/StatusChip';
 import RequirePermission from '../../components/bureau/RequirePermission';
+import SearchBar from '../../components/bureau/SearchBar';
+import { useDebounce } from '../../lib/hooks/use-debounce';
+import { useClientSearch } from '../../lib/search/use-client-search';
 import { IconBubble } from '../../components/ui';
 import type { BureauStackParamList } from '../../navigation/types';
 import { cyclesApi } from '../../lib/api/cycles';
@@ -37,6 +40,13 @@ type TabKey = 'cycles' | 'types' | 'pots' | 'payouts';
 export default function BureauCyclesScreen() {
   const navigation = useNavigation<Nav>();
   const [tab, setTab] = useState<TabKey>('cycles');
+  const [typeSearch, setTypeSearch] = useState('');
+  const debouncedTypeSearch = useDebounce(typeSearch.trim(), 300);
+  // Mode « recherche Types » : on masque le hero + la section méthodes pour
+  // (1) remonter les résultats au-dessus du clavier, (2) éviter que les
+  // compteurs du hero ne se décalent quand la liste filtrée change de taille.
+  // Basé sur la saisie immédiate (pas le debounce) → le hero se replie dès la frappe.
+  const focusTypeSearch = tab === 'types' && typeSearch.trim().length > 0;
 
   // Toujours chargés : alimentent le hero + le résumé général + les cartes méthodes.
   const cyclesQ = useQuery({
@@ -46,6 +56,14 @@ export default function BureauCyclesScreen() {
   const typesQ = useQuery({
     queryKey: ['bureau', 'tontine-types'],
     queryFn: () => tontinesApi.types(),
+  });
+  // Recherche serveur (search_fields backend) — query séparée pour ne pas
+  // fausser les stats du hero, qui doivent refléter TOUS les types. N'est
+  // sollicitée que quand l'utilisateur tape (sinon on réutilise typesQ complet).
+  const typesSearchQ = useQuery({
+    queryKey: ['bureau', 'tontine-types', 'search', debouncedTypeSearch],
+    queryFn: () => tontinesApi.types({ search: debouncedTypeSearch }),
+    enabled: tab === 'types' && debouncedTypeSearch.length > 0,
   });
   const potsQ = useQuery({
     queryKey: ['bureau', 'pots'],
@@ -60,6 +78,11 @@ export default function BureauCyclesScreen() {
 
   const cycles = cyclesQ.data ?? [];
   const types = typesQ.data ?? [];
+  const cycleSearch = useClientSearch(cyclesQ.data, (c) => [
+    c.name,
+    cycleStatus(c.status).label,
+    formatDateFr(c.start_date, false),
+  ]);
 
   const stats = useMemo(() => {
     const activeTypes = types.filter((t) => t.is_active).length;
@@ -94,6 +117,8 @@ export default function BureauCyclesScreen() {
           <RefreshControl refreshing={activeQ.isRefetching} onRefresh={() => activeQ.refetch()} tintColor={colors.primary} />
         }
       >
+        {!focusTypeSearch ? (
+        <>
         {/* ---- Hero ---- */}
         <LinearGradient
           colors={[colors.primary, colors.primaryDark]}
@@ -136,6 +161,8 @@ export default function BureauCyclesScreen() {
         <MethodCard icon="shuffle" tint="info" title="Tirage aléatoire" desc="Attribution automatique des bénéficiaires par tirage au sort." count={methodCounts.random} />
         <MethodCard icon="hammer" tint="accent" title="Enchères" desc="Les membres enchérissent pour obtenir la cagnotte en premier." count={methodCounts.auction} />
         <MethodCard icon="checkbox" tint="primary" title="Vote communautaire" desc="Les bénéficiaires sont choisis par vote des membres." count={methodCounts.vote} />
+        </>
+        ) : null}
 
         {/* ---- Onglets ---- */}
         <View style={styles.tabsInline}>
@@ -152,12 +179,16 @@ export default function BureauCyclesScreen() {
               </Pressable>
             </RequirePermission>
 
+            {!cyclesQ.isLoading && cycles.length > 0 ? (
+              <SearchBar value={cycleSearch.query} onChangeText={cycleSearch.setQuery} placeholder="Rechercher un cycle…" />
+            ) : null}
+
             {cyclesQ.isLoading ? (
               <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.lg }} />
-            ) : (cyclesQ.data ?? []).length === 0 ? (
-              <Empty icon="reload-circle-outline" text="Aucun cycle." />
+            ) : cycleSearch.filtered.length === 0 ? (
+              <Empty icon="reload-circle-outline" text={cycleSearch.hasQuery ? `Aucun cycle pour « ${cycleSearch.query.trim()} ».` : 'Aucun cycle.'} />
             ) : (
-              (cyclesQ.data ?? []).map((c) => {
+              cycleSearch.filtered.map((c) => {
                 const st = cycleStatus(c.status);
                 return (
                   <Pressable key={c.id} style={styles.row} onPress={() => navigation.navigate('BureauCycleDetail', { id: c.id })}>
@@ -187,13 +218,28 @@ export default function BureauCyclesScreen() {
               </Pressable>
             </RequirePermission>
 
-            {typesQ.isLoading ? (
-              <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.lg }} />
-            ) : (typesQ.data ?? []).length === 0 ? (
-              <Empty icon="layers-outline" text="Aucun type de cotisation." />
-            ) : (
-              (typesQ.data ?? []).map((t) => <TypeCard key={t.id} t={t} onEdit={() => navigation.navigate('BureauTontineTypeForm', { id: t.id })} />)
-            )}
+            <SearchBar value={typeSearch} onChangeText={setTypeSearch} placeholder="Rechercher un type (nom, description)…" />
+
+            {/* Liste : query serveur quand on cherche, sinon la liste complète. */}
+            {(() => {
+              const searching = debouncedTypeSearch.length > 0;
+              const listQ = searching ? typesSearchQ : typesQ;
+              const items = (searching ? typesSearchQ.data : typesQ.data) ?? [];
+              if (listQ.isLoading) {
+                return <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.lg }} />;
+              }
+              if (items.length === 0) {
+                return (
+                  <Empty
+                    icon="layers-outline"
+                    text={searching ? `Aucun type pour « ${debouncedTypeSearch} ».` : 'Aucun type de cotisation.'}
+                  />
+                );
+              }
+              return items.map((t) => (
+                <TypeCard key={t.id} t={t} onEdit={() => navigation.navigate('BureauTontineTypeForm', { id: t.id })} />
+              ));
+            })()}
           </>
         ) : null}
 

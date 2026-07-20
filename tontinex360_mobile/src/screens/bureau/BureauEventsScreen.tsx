@@ -8,6 +8,9 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import StatusChip, { StatusTone } from '../../components/bureau/StatusChip';
 import RequirePermission from '../../components/bureau/RequirePermission';
+import SearchBar from '../../components/bureau/SearchBar';
+import SearchCapNotice from '../../components/bureau/SearchCapNotice';
+import { useClientSearch } from '../../lib/search/use-client-search';
 import { IconBubble } from '../../components/ui';
 import type { BureauStackParamList } from '../../navigation/types';
 import { eventsApi, EVENT_TYPE_LABEL, type AppEvent } from '../../lib/api/events';
@@ -64,9 +67,16 @@ export default function BureauEventsScreen() {
     ]);
 
   const events = q.data ?? [];
+  const { query, setQuery, filtered: searched, capped } = useClientSearch(events, (e) => [
+    e.title,
+    e.description,
+    e.location,
+    EVENT_TYPE_LABEL[e.event_type] ?? e.event_type,
+    STATUS[e.status]?.label,
+  ]);
   const filtered = useMemo(
-    () => (statusFilter === 'all' ? events : events.filter((e) => e.status === statusFilter)),
-    [events, statusFilter],
+    () => (statusFilter === 'all' ? searched : searched.filter((e) => e.status === statusFilter)),
+    [searched, statusFilter],
   );
 
   return (
@@ -82,6 +92,9 @@ export default function BureauEventsScreen() {
             <Text style={styles.addBtnText}>Nouvel événement</Text>
           </Pressable>
         </RequirePermission>
+
+        <SearchBar value={query} onChangeText={setQuery} placeholder="Rechercher un événement…" />
+        <SearchCapNotice visible={capped} />
 
         <View style={styles.filters}>
           {STATUS_FILTERS.map((f) => {
@@ -99,7 +112,9 @@ export default function BureauEventsScreen() {
         ) : filtered.length === 0 ? (
           <View style={styles.empty}>
             <IconBubble icon="calendar-outline" tint="lime" size={56} />
-            <Text style={styles.emptyText}>Aucun événement.</Text>
+            <Text style={styles.emptyText}>
+              {query.trim() ? `Aucun événement pour « ${query.trim()} ».` : 'Aucun événement.'}
+            </Text>
           </View>
         ) : (
           filtered.map((e) => {

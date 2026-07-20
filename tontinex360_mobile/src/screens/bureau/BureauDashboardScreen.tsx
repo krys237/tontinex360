@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useLayoutEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -62,6 +62,17 @@ export default function BureauDashboardScreen() {
   const dismissTuto = useAppStore((s) => s.dismissPresidentTuto);
   const showTuto = isPresident && !!assoc && !tutoDismissed.includes(assoc.slug);
 
+  // Loupe dans le header → recherche globale du bureau.
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <Pressable onPress={() => navigation.navigate('BureauSearch')} hitSlop={10}>
+          <Ionicons name="search" size={22} color={colors.primary} />
+        </Pressable>
+      ),
+    });
+  }, [navigation]);
+
   // Compteurs de badges (best-effort : on ignore les erreurs 403).
   const requestsQ = useQuery({
     queryKey: ['bureau', 'membership-requests', 'pending'],
@@ -98,6 +109,12 @@ export default function BureauDashboardScreen() {
             {assoc?.name ? `${assoc.name} — ` : ''}gérez votre tontine depuis cet espace.
           </Text>
         </LinearGradient>
+
+        {/* Recherche globale du bureau (ouvre l'écran dédié) */}
+        <Pressable style={styles.searchField} onPress={() => navigation.navigate('BureauSearch')}>
+          <Ionicons name="search" size={18} color={colors.textMuted} />
+          <Text style={styles.searchPlaceholder}>Rechercher un module, une action…</Text>
+        </Pressable>
 
         {/* Tuto de démarrage — nouveau président */}
         {showTuto ? (
@@ -178,6 +195,20 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary, 
     ...cardShadow 
   },
+
+  searchField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    minHeight: 48,
+    paddingHorizontal: 14,
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.inputBorder,
+    ...cardShadow,
+  },
+  searchPlaceholder: { fontSize: font.size.base, color: colors.textMuted },
 
   tutoCard: { backgroundColor: colors.white, borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm, borderWidth: 1, borderColor: colors.greenBgDeep, ...cardShadow },
   tutoHead: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },

@@ -3,7 +3,8 @@ import api, { unwrap, Paginated } from './client';
 import type { TontineType, MemberSubscription } from '../types/tontine';
 
 export const tontinesApi = {
-  types: (params?: { is_active?: boolean }) =>
+  // `search` : recherche serveur DRF (search_fields = name, description).
+  types: (params?: { is_active?: boolean; search?: string }) =>
     api
       .get<TontineType[] | Paginated<TontineType>>('/tontines/types/', { params })
       .then((r) => unwrap(r.data)),

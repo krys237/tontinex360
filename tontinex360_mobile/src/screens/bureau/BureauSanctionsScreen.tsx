@@ -18,6 +18,9 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import TabsRow from '../../components/bureau/TabsRow';
 import StatusChip, { StatusTone } from '../../components/bureau/StatusChip';
 import RequirePermission from '../../components/bureau/RequirePermission';
+import SearchBar from '../../components/bureau/SearchBar';
+import SearchCapNotice from '../../components/bureau/SearchCapNotice';
+import { useClientSearch } from '../../lib/search/use-client-search';
 import { IconBubble } from '../../components/ui';
 import type { BureauStackParamList } from '../../navigation/types';
 import { sanctionsApi, type SanctionStatus, type SanctionType } from '../../lib/api/sanctions';
@@ -32,7 +35,9 @@ type TabKey = 'applied' | 'types';
 
 const STATUS: Record<SanctionStatus, { label: string; tone: StatusTone }> = {
   pending: { label: 'En attente', tone: 'warning' },
+  submitted: { label: 'À valider', tone: 'warning' },
   paid: { label: 'Payée', tone: 'success' },
+  rejected: { label: 'Rejetée', tone: 'danger' },
   waived: { label: 'Graciée', tone: 'muted' },
   contested: { label: 'Contestée', tone: 'danger' },
 };
@@ -71,10 +76,20 @@ export default function BureauSanctionsScreen() {
     ]);
 
   const sanctions = listQ.data ?? [];
+  const appliedSearch = useClientSearch(sanctions, (s) => [
+    s.member_name,
+    s.type_name,
+    s.reason,
+    STATUS[s.status]?.label,
+  ]);
   const filtered = useMemo(
-    () => (statusFilter === 'all' ? sanctions : sanctions.filter((s) => s.status === statusFilter)),
-    [sanctions, statusFilter],
+    () =>
+      statusFilter === 'all'
+        ? appliedSearch.filtered
+        : appliedSearch.filtered.filter((s) => s.status === statusFilter),
+    [appliedSearch.filtered, statusFilter],
   );
+  const typeSearch = useClientSearch(typesQ.data, (t) => [t.name, t.description]);
 
   const tabs = [
     { key: 'applied', label: 'Sanctions appliquées' },
@@ -104,6 +119,8 @@ export default function BureauSanctionsScreen() {
         {/* ---- Sanctions appliquées ---- */}
         {tab === 'applied' ? (
           <>
+            <SearchBar value={appliedSearch.query} onChangeText={appliedSearch.setQuery} placeholder="Rechercher (membre, motif…)" />
+            <SearchCapNotice visible={appliedSearch.capped} />
             <View style={styles.filters}>
               {STATUS_FILTERS.map((f) => {
                 const on = statusFilter === f.key;
@@ -118,7 +135,10 @@ export default function BureauSanctionsScreen() {
             {listQ.isLoading ? (
               <Loader />
             ) : filtered.length === 0 ? (
-              <Empty icon="shield-checkmark-outline" text="Aucune sanction." />
+              <Empty
+                icon="shield-checkmark-outline"
+                text={appliedSearch.hasQuery ? `Aucune sanction pour « ${appliedSearch.query.trim()} ».` : 'Aucune sanction.'}
+              />
             ) : (
               filtered.map((s) => {
                 const st = STATUS[s.status] ?? STATUS.pending;
@@ -167,13 +187,23 @@ export default function BureauSanctionsScreen() {
               </Pressable>
             </RequirePermission>
 
+            {!typesQ.isLoading && (typesQ.data ?? []).length > 0 ? (
+              <>
+                <SearchBar value={typeSearch.query} onChangeText={typeSearch.setQuery} placeholder="Rechercher un type…" />
+                <SearchCapNotice visible={typeSearch.capped} />
+              </>
+            ) : null}
+
             {typesQ.isLoading ? (
               <Loader />
-            ) : (typesQ.data ?? []).length === 0 ? (
-              <Empty icon="list-outline" text="Aucun type de sanction." />
+            ) : typeSearch.filtered.length === 0 ? (
+              <Empty
+                icon="list-outline"
+                text={typeSearch.hasQuery ? `Aucun type pour « ${typeSearch.query.trim()} ».` : 'Aucun type de sanction.'}
+              />
             ) : (
               <View style={styles.typeGrid}>
-                {(typesQ.data ?? []).map((t) => (
+                {typeSearch.filtered.map((t) => (
                   <View key={t.id} style={styles.typeCard}>
                     <View style={styles.typeHead}>
                       <Text style={styles.typeName} numberOfLines={2}>{t.name}</Text>

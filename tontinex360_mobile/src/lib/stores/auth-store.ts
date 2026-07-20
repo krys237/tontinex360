@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { User, Association } from '../types/auth';
 import type { Membership } from '../types/member';
 import { setActiveSlug, clearAuth } from '../storage/secure-storage';
+import { unregisterPushToken } from '../push/fcm';
 import { queryClient } from '../query-client';
 
 interface AuthState {
@@ -45,6 +46,9 @@ export const useAuthStore = create<AuthState>()(
       setCurrentMembership: (m) => set({ currentMembership: m }),
 
       logout: async () => {
+        // Avant clearAuth : l'appareil doit cesser de recevoir les push du
+        // compte qui part. Un échec ici ne doit pas bloquer la déconnexion.
+        await unregisterPushToken().catch(() => {});
         await clearAuth();
         set({
           user: null,

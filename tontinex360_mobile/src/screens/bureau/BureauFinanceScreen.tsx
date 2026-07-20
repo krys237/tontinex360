@@ -23,6 +23,8 @@ import ContributionTopUpModal from '../../components/bureau/ContributionTopUpMod
 import LoanRequestModal from '../../components/bureau/LoanRequestModal';
 import ApprovalRequestModal, { type ApprovalField } from '../../components/bureau/ApprovalRequestModal';
 import RequirePermission from '../../components/bureau/RequirePermission';
+import SearchBar from '../../components/bureau/SearchBar';
+import { filterByQuery } from '../../lib/search/text';
 import { IconBubble } from '../../components/ui';
 import type { BureauStackParamList } from '../../navigation/types';
 import type { Contribution, Loan } from '../../lib/types/finance';
@@ -64,6 +66,9 @@ type LoanAction = { loan: Loan; actionType: ApprovalActionType; title: string; f
 export default function BureauFinanceScreen() {
   const navigation = useNavigation<Nav>();
   const [tab, setTab] = useState<TabKey>('contributions');
+  const [finQuery, setFinQuery] = useState('');
+  const finEmpty = (base: string) =>
+    finQuery.trim() ? `Aucun résultat pour « ${finQuery.trim()} ».` : base;
   const [sessionId, setSessionId] = useState('');
   const [status, setStatus] = useState('');
   const [correcting, setCorrecting] = useState<Contribution | null>(null);
@@ -140,10 +145,17 @@ export default function BureauFinanceScreen() {
 
   const activeQ = tab === 'contributions' ? contribQ : tab === 'loans' ? loansQ : tab === 'repayments' ? repaymentsQ : txQ;
 
+  // Filtrage client de l'onglet actif. Les KPIs restent calculés sur la liste
+  // complète (contribQ/loansQ) → ils ne bougent pas pendant la recherche.
+  const contribList = filterByQuery(contribQ.data ?? [], finQuery, (c) => [c.member_name, c.tontine_type_name, c.tontine_type]);
+  const loanList = filterByQuery(loansQ.data ?? [], finQuery, (l) => [l.member_name]);
+  const repayList = filterByQuery(repaymentsQ.data ?? [], finQuery, (r) => [formatXAF(r.amount), r.payment_method]);
+  const txList = filterByQuery(txQ.data ?? [], finQuery, (t) => [t.description, t.transaction_type]);
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <View style={styles.tabsWrap}>
-        <TabsRow tabs={tabs} active={tab} onChange={(k) => setTab(k as TabKey)} />
+        <TabsRow tabs={tabs} active={tab} onChange={(k) => { setTab(k as TabKey); setFinQuery(''); }} />
       </View>
 
       <ScrollView
@@ -169,12 +181,14 @@ export default function BureauFinanceScreen() {
             />
             <FilterChips options={STATUS_FILTERS} value={status} onChange={setStatus} />
 
+            <SearchBar value={finQuery} onChangeText={setFinQuery} placeholder="Rechercher (membre, tontine)…" />
+
             {contribQ.isLoading ? (
               <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.x2 }} />
-            ) : (contribQ.data ?? []).length === 0 ? (
-              <Empty icon="cash-outline" text="Aucune cotisation." />
+            ) : contribList.length === 0 ? (
+              <Empty icon="cash-outline" text={finEmpty('Aucune cotisation.')} />
             ) : (
-              (contribQ.data ?? []).map((c) => {
+              contribList.map((c) => {
                 const st = contributionStatus(c.status);
                 const canSign = (c.status === 'paid' || c.status === 'partial') && !c.has_receipt;
                 const canCorrect = !c.has_receipt && !c.has_pending_correction;
@@ -274,12 +288,14 @@ export default function BureauFinanceScreen() {
             {/* Filtre statut */}
             <FilterChips options={LOAN_STATUS_FILTERS} value={loanStatusFilter} onChange={setLoanStatusFilter} />
 
+            <SearchBar value={finQuery} onChangeText={setFinQuery} placeholder="Rechercher un membre…" />
+
             {loansQ.isLoading ? (
               <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.x2 }} />
-            ) : (loansQ.data ?? []).length === 0 ? (
-              <Empty icon="trending-up" text="Aucun prêt." />
+            ) : loanList.length === 0 ? (
+              <Empty icon="trending-up" text={finEmpty('Aucun prêt.')} />
             ) : (
-              (loansQ.data ?? []).map((l) => {
+              loanList.map((l) => {
                 const st = loanStatus(l.status);
                 const canApprove = l.status === 'pending';
                 const canModify = ['pending', 'approved', 'disbursed'].includes(String(l.status));
@@ -348,12 +364,14 @@ export default function BureauFinanceScreen() {
 
         {/* ===================== REMBOURSEMENTS ===================== */}
         {tab === 'repayments' ? (
-          repaymentsQ.isLoading ? (
+          <>
+          <SearchBar value={finQuery} onChangeText={setFinQuery} placeholder="Rechercher (montant, méthode)…" />
+          {repaymentsQ.isLoading ? (
             <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.x2 }} />
-          ) : (repaymentsQ.data ?? []).length === 0 ? (
-            <Empty icon="repeat" text="Aucun remboursement." />
+          ) : repayList.length === 0 ? (
+            <Empty icon="repeat" text={finEmpty('Aucun remboursement.')} />
           ) : (
-            (repaymentsQ.data ?? []).map((r) => (
+            repayList.map((r) => (
               <View key={r.id} style={styles.row}>
                 <IconBubble icon="repeat" tint="lime" size={40} />
                 <View style={styles.flex}>
@@ -363,17 +381,20 @@ export default function BureauFinanceScreen() {
                 {r.has_receipt ? <StatusChip label="Signé" tone="success" /> : <StatusChip label="Non signé" tone="muted" />}
               </View>
             ))
-          )
+          )}
+          </>
         ) : null}
 
         {/* ===================== TRANSACTIONS ===================== */}
         {tab === 'transactions' ? (
-          txQ.isLoading ? (
+          <>
+          <SearchBar value={finQuery} onChangeText={setFinQuery} placeholder="Rechercher (libellé, type)…" />
+          {txQ.isLoading ? (
             <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.x2 }} />
-          ) : (txQ.data ?? []).length === 0 ? (
-            <Empty icon="swap-horizontal" text="Aucune transaction." />
+          ) : txList.length === 0 ? (
+            <Empty icon="swap-horizontal" text={finEmpty('Aucune transaction.')} />
           ) : (
-            (txQ.data ?? []).map((t) => (
+            txList.map((t) => (
               <View key={t.id} style={styles.row}>
                 <IconBubble icon={t.is_debit ? 'arrow-up' : 'arrow-down'} tint={t.is_debit ? 'danger' : 'lime'} size={40} />
                 <View style={styles.flex}>
@@ -385,7 +406,8 @@ export default function BureauFinanceScreen() {
                 <Text style={styles.txDate}>{timeAgo(t.created_at)}</Text>
               </View>
             ))
-          )
+          )}
+          </>
         ) : null}
       </ScrollView>
 

@@ -13,6 +13,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import StatusChip, { StatusTone } from '../../components/bureau/StatusChip';
 import ActionBtn from '../../components/bureau/ActionBtn';
+import SearchBar from '../../components/bureau/SearchBar';
+import SearchCapNotice from '../../components/bureau/SearchCapNotice';
+import { useClientSearch } from '../../lib/search/use-client-search';
 import { IconBubble } from '../../components/ui';
 import { proxiesApi, type ProxyStatus } from '../../lib/api/proxies';
 import { colors } from '../../theme/colors';
@@ -36,6 +39,13 @@ function errMsg(e: any): string {
 export default function BureauProxiesScreen() {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ['bureau', 'proxies'], queryFn: () => proxiesApi.list() });
+  const { query, setQuery, filtered, capped, hasQuery } = useClientSearch(q.data, (p) => [
+    p.grantor_name,
+    p.proxy_name,
+    p.tontine_name,
+    p.session_number,
+    STATUS[(p.status ?? 'pending') as ProxyStatus]?.label,
+  ]);
 
   const approveMut = useMutation({
     mutationFn: (id: string) => proxiesApi.approve(id),
@@ -55,15 +65,24 @@ export default function BureauProxiesScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={() => q.refetch()} tintColor={colors.primary} />}
       >
+        {!q.isLoading && (q.data ?? []).length > 0 ? (
+          <>
+            <SearchBar value={query} onChangeText={setQuery} placeholder="Rechercher une procuration…" />
+            <SearchCapNotice visible={capped} />
+          </>
+        ) : null}
+
         {q.isLoading ? (
           <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.x3 }} />
-        ) : (q.data ?? []).length === 0 ? (
+        ) : filtered.length === 0 ? (
           <View style={styles.empty}>
             <IconBubble icon="document-text-outline" tint="lime" size={56} />
-            <Text style={styles.emptyText}>Aucune procuration.</Text>
+            <Text style={styles.emptyText}>
+              {hasQuery ? `Aucune procuration pour « ${query.trim()} ».` : 'Aucune procuration.'}
+            </Text>
           </View>
         ) : (
-          (q.data ?? []).map((p) => {
+          filtered.map((p) => {
             const status = (p.status ?? 'pending') as ProxyStatus;
             const st = STATUS[status] ?? STATUS.pending;
             const isPending = status === 'pending';

@@ -9,6 +9,8 @@ import {
   TextInput,
   Pressable,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -49,29 +51,35 @@ export default function AuctionsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={potsQ.isRefetching}
-            onRefresh={() => potsQ.refetch()}
-            tintColor={colors.primary}
-          />
-        }>
-        {potsQ.isLoading ? (
-          <ActivityIndicator color={colors.primary} style={styles.loader} />
-        ) : auctionPots.length === 0 ? (
-          <Card style={styles.emptyCard}>
-            <Ionicons name="hammer-outline" size={28} color={colors.textLight} />
-            <Text style={styles.empty}>Aucune enchère ouverte pour le moment.</Text>
-          </Card>
-        ) : (
-          auctionPots.map((pot) => (
-            <AuctionPotCard key={pot.id} pot={pot} myId={myId} />
-          ))
-        )}
-      </ScrollView>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          refreshControl={
+            <RefreshControl
+              refreshing={potsQ.isRefetching}
+              onRefresh={() => potsQ.refetch()}
+              tintColor={colors.primary}
+            />
+          }>
+          {potsQ.isLoading ? (
+            <ActivityIndicator color={colors.primary} style={styles.loader} />
+          ) : auctionPots.length === 0 ? (
+            <Card style={styles.emptyCard}>
+              <Ionicons name="hammer-outline" size={28} color={colors.textLight} />
+              <Text style={styles.empty}>Aucune enchère ouverte pour le moment.</Text>
+            </Card>
+          ) : (
+            auctionPots.map((pot) => (
+              <AuctionPotCard key={pot.id} pot={pot} myId={myId} />
+            ))
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -276,6 +284,7 @@ function AuctionPotCard({ pot, myId }: { pot: SessionPot; myId?: string }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
+  flex: { flex: 1 },
   scroll: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.x3 },
   loader: { marginTop: spacing.x2 },
   miniLoader: { marginVertical: spacing.sm },

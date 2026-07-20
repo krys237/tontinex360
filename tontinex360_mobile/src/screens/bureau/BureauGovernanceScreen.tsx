@@ -20,6 +20,8 @@ import TabsRow from '../../components/bureau/TabsRow';
 import StatusChip, { StatusTone } from '../../components/bureau/StatusChip';
 import ActionBtn from '../../components/bureau/ActionBtn';
 import RequirePermission from '../../components/bureau/RequirePermission';
+import SearchBar from '../../components/bureau/SearchBar';
+import { filterByQuery } from '../../lib/search/text';
 import { IconBubble } from '../../components/ui';
 import type { BubbleTint } from '../../components/ui/IconBubble';
 import type { BureauStackParamList } from '../../navigation/types';
@@ -48,6 +50,9 @@ export default function BureauGovernanceScreen() {
   const navigation = useNavigation<Nav>();
   const qc = useQueryClient();
   const [tab, setTab] = useState<TabKey>('announcements');
+  const [govQuery, setGovQuery] = useState('');
+  const searchEmpty = (base: string) =>
+    govQuery.trim() ? `Aucun résultat pour « ${govQuery.trim()} ».` : base;
 
   // Données natives (partagées avec les onglets via les mêmes queryKeys)
   const annQ = useQuery({ queryKey: ['bureau', 'announcements'], queryFn: () => governanceApi.announcements(), enabled: tab === 'announcements' });
@@ -94,6 +99,12 @@ export default function BureauGovernanceScreen() {
   ];
   const activeQ = tab === 'announcements' ? annQ : tab === 'polls' ? pollsQ : tab === 'elections' ? elecQ : tab === 'documents' ? docsQ : requestsQ;
 
+  // Filtrage client de l'onglet actif (une seule liste rendue à la fois).
+  const annList = filterByQuery(annQ.data ?? [], govQuery, (a) => [a.title, a.content]);
+  const pollsList = filterByQuery(pollsQ.data ?? [], govQuery, (p) => [p.title, p.status_display, p.status]);
+  const elecList = filterByQuery(elecQ.data ?? [], govQuery, (e) => [e.title, e.method, e.status]);
+  const docsList = filterByQuery(docsQ.data ?? [], govQuery, (d) => [d.title, d.doc_type, d.version]);
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView
@@ -124,8 +135,12 @@ export default function BureauGovernanceScreen() {
 
         {/* Onglets */}
         <View style={styles.tabsInline}>
-          <TabsRow tabs={tabs} active={tab} onChange={(k) => setTab(k as TabKey)} />
+          <TabsRow tabs={tabs} active={tab} onChange={(k) => { setTab(k as TabKey); setGovQuery(''); }} />
         </View>
+
+        {tab !== 'moderation' ? (
+          <SearchBar value={govQuery} onChangeText={setGovQuery} placeholder="Rechercher…" />
+        ) : null}
 
         {/* ---- Annonces ---- */}
         {tab === 'announcements' ? (
@@ -133,8 +148,8 @@ export default function BureauGovernanceScreen() {
             <RequirePermission bureau>
               <AddBtn label="Publier une annonce" onPress={() => navigation.navigate('BureauAnnouncementForm')} />
             </RequirePermission>
-            {annQ.isLoading ? <Loader /> : (annQ.data ?? []).length === 0 ? <Empty icon="megaphone-outline" text="Aucune annonce." /> :
-              (annQ.data ?? []).map((a) => (
+            {annQ.isLoading ? <Loader /> : annList.length === 0 ? <Empty icon="megaphone-outline" text={searchEmpty('Aucune annonce.')} /> :
+              annList.map((a) => (
                 <Pressable key={a.id} style={styles.row} onPress={() => navigation.navigate('BureauAnnouncementDetail', { id: a.id })}>
                   <IconBubble icon="megaphone" tint={a.is_pinned ? 'accent' : 'lime'} size={40} />
                   <View style={styles.flex}>
@@ -154,8 +169,8 @@ export default function BureauGovernanceScreen() {
             <RequirePermission bureau>
               <AddBtn label="Nouveau sondage" onPress={() => navigation.navigate('BureauPollForm')} />
             </RequirePermission>
-            {pollsQ.isLoading ? <Loader /> : (pollsQ.data ?? []).length === 0 ? <Empty icon="bar-chart-outline" text="Aucun sondage." /> :
-              (pollsQ.data ?? []).map((p) => (
+            {pollsQ.isLoading ? <Loader /> : pollsList.length === 0 ? <Empty icon="bar-chart-outline" text={searchEmpty('Aucun sondage.')} /> :
+              pollsList.map((p) => (
                 <Pressable key={p.id} style={styles.row} onPress={() => navigation.navigate('BureauPollDetail', { id: p.id })}>
                   <IconBubble icon="bar-chart" tint="info" size={40} />
                   <View style={styles.flex}>
@@ -175,8 +190,8 @@ export default function BureauGovernanceScreen() {
             <RequirePermission bureau>
               <AddBtn label="Nouvelle élection" onPress={() => navigation.navigate('BureauElectionForm')} />
             </RequirePermission>
-            {elecQ.isLoading ? <Loader /> : (elecQ.data ?? []).length === 0 ? <Empty icon="podium-outline" text="Aucune élection." /> :
-              (elecQ.data ?? []).map((e) => (
+            {elecQ.isLoading ? <Loader /> : elecList.length === 0 ? <Empty icon="podium-outline" text={searchEmpty('Aucune élection.')} /> :
+              elecList.map((e) => (
                 <Pressable key={e.id} style={styles.row} onPress={() => navigation.navigate('BureauElectionDetail', { id: e.id })}>
                   <IconBubble icon="podium" tint="lime" size={40} />
                   <View style={styles.flex}>
@@ -196,8 +211,8 @@ export default function BureauGovernanceScreen() {
             <RequirePermission bureau>
               <AddBtn label="Nouveau document" onPress={() => navigation.navigate('BureauDocumentForm')} />
             </RequirePermission>
-            {docsQ.isLoading ? <Loader /> : (docsQ.data ?? []).length === 0 ? <Empty icon="folder-open-outline" text="Aucun document." /> :
-              (docsQ.data ?? []).map((d) => (
+            {docsQ.isLoading ? <Loader /> : docsList.length === 0 ? <Empty icon="folder-open-outline" text={searchEmpty('Aucun document.')} /> :
+              docsList.map((d) => (
                 <Pressable key={d.id} style={styles.row} onPress={() => navigation.navigate('BureauDocumentDetail', { id: d.id })}>
                   <IconBubble icon="document-text" tint="accent" size={40} />
                   <View style={styles.flex}>

@@ -17,6 +17,9 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import KpiCard from '../../components/bureau/KpiCard';
 import StatusChip from '../../components/bureau/StatusChip';
+import SearchBar from '../../components/bureau/SearchBar';
+import SearchCapNotice from '../../components/bureau/SearchCapNotice';
+import { useClientSearch } from '../../lib/search/use-client-search';
 import { Card, IconBubble, ProgressBar } from '../../components/ui';
 import type { BureauStackParamList } from '../../navigation/types';
 import { sessionsApi } from '../../lib/api/sessions';
@@ -76,6 +79,13 @@ export default function BureauSessionsScreen() {
     ? stats.progress_percent ??
       (stats.total_sessions ? Math.round(((stats.completed_sessions ?? 0) / stats.total_sessions) * 100) : null)
     : null;
+
+  const sessionSearch = useClientSearch(listQ.data, (s) => [
+    s.session_number != null ? `séance n°${s.session_number} s${s.session_number}` : '',
+    formatDateFr(s.date, false),
+    s.location,
+    sessionStatus(s.status).label,
+  ]);
 
   const cycleChips = [{ id: '', name: 'Tous' }, ...(cyclesQ.data ?? []).map((c) => ({ id: c.id, name: c.name }))];
   const statusChips = [
@@ -204,15 +214,24 @@ export default function BureauSessionsScreen() {
           })}
         </ScrollView>
 
+        {!listQ.isLoading && (listQ.data ?? []).length > 0 ? (
+          <>
+            <SearchBar value={sessionSearch.query} onChangeText={sessionSearch.setQuery} placeholder="Rechercher une séance…" />
+            <SearchCapNotice visible={sessionSearch.capped} />
+          </>
+        ) : null}
+
         {listQ.isLoading ? (
           <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.lg }} />
-        ) : (listQ.data ?? []).length === 0 ? (
+        ) : sessionSearch.filtered.length === 0 ? (
           <View style={styles.empty}>
             <IconBubble icon="calendar-outline" tint="lime" size={56} />
-            <Text style={styles.emptyText}>Aucune séance.</Text>
+            <Text style={styles.emptyText}>
+              {sessionSearch.hasQuery ? `Aucune séance pour « ${sessionSearch.query.trim()} ».` : 'Aucune séance.'}
+            </Text>
           </View>
         ) : (
-          (listQ.data ?? []).map((s) => {
+          sessionSearch.filtered.map((s) => {
             const st = sessionStatus(s.status);
             return (
               <Pressable key={s.id} style={styles.row} onPress={() => navigation.navigate('BureauSessionDetail', { id: s.id })}>

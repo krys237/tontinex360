@@ -13,6 +13,7 @@ import { bootstrapSession } from './lib/auth/session';
 import { hydrateApp } from './lib/stores/app-store';
 import { setUnauthorizedHandler } from './lib/api/client';
 import { useAuthStore } from './lib/stores/auth-store';
+import { usePushRegistration } from './lib/push/use-push-registration';
 import { poppinsFonts, patchTextFonts } from './theme/fonts';
 import { colors } from './theme/colors';
 
@@ -33,6 +34,9 @@ function waitForStoreHydration(): Promise<void> {
 export default function App() {
   const [booting, setBooting] = useState(true);
   const [fontsLoaded] = useFonts(poppinsFonts);
+
+  // Enregistre le token FCM auprès du backend dès qu'une session est active.
+  usePushRegistration();
 
   useEffect(() => {
     // On a final 401 (refresh failed), drop the session -> RootNavigator shows Auth.

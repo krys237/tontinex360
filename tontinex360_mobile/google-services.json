@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "671435358711",
+    "project_id": "tontinex360-mobile",
+    "storage_bucket": "tontinex360-mobile.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:671435358711:android:36090ee4e259688eab2ef2",
+        "android_client_info": {
+          "package_name": "com.tontinex360.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDZNyujCpA0iOR_0XIt3gqGorJ4dV7c5AY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

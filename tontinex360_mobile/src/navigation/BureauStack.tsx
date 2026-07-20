@@ -2,6 +2,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { BureauStackParamList } from './types';
 import BureauDashboardScreen from '../screens/bureau/BureauDashboardScreen';
+import BureauSearchScreen from '../screens/bureau/BureauSearchScreen';
 import BureauOverviewScreen from '../screens/bureau/BureauOverviewScreen';
 import BureauMembersScreen from '../screens/bureau/BureauMembersScreen';
 import BureauMemberDetailScreen from '../screens/bureau/BureauMemberDetailScreen';
@@ -67,6 +68,7 @@ export default function BureauStack() {
         component={BureauDashboardScreen}
         options={{ title: 'Espace Bureau', ...header }}
       />
+      <Stack.Screen name="BureauSearch" component={BureauSearchScreen} options={{ title: 'Rechercher', ...header }} />
       <Stack.Screen name="BureauOverview" component={BureauOverviewScreen} options={{ title: 'Tableau de bord', ...header }} />
       {/* Phase 2 — Membres */}
       <Stack.Screen name="BureauMembers" component={BureauMembersScreen} options={{ title: 'Membres', ...header }} />
