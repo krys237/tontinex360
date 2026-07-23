@@ -33,6 +33,14 @@ import { spacing, radius } from '../../theme/spacing';
 import { cardShadow } from '../../theme/shadow';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
+type Method = 'mobile_money' | 'bank_transfer' | 'cash';
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
+const METHODS: { key: Method; label: string; icon: IoniconName }[] = [
+  { key: 'mobile_money', label: 'Mobile Money', icon: 'phone-portrait-outline' },
+  { key: 'bank_transfer', label: 'Virement', icon: 'business-outline' },
+  { key: 'cash', label: 'Espèces', icon: 'cash-outline' },
+];
 
 /** Montant restant dû, plancher à 0. */
 function owed(c: Contribution): number {
@@ -45,9 +53,14 @@ export default function RegulariserScreen() {
   const membership = useAuthStore((s) => s.currentMembership);
   const myId = membership?.id;
 
+  // Deux modals distincts : régularisation d'un impayé (re-soumission avec
+  // preuve) vs demande de correction d'un rejet sur séance close (sans preuve,
+  // non gérée par le serveur sur ce flux).
   const [selected, setSelected] = useState<Contribution | null>(null);
+  const [mode, setMode] = useState<'regularize' | 'correction'>('correction');
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
+  const [method, setMethod] = useState<Method>('mobile_money');
   const [proofUri, setProofUri] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -64,27 +77,63 @@ export default function RegulariserScreen() {
   const totalDue = useMemo(() => items.reduce((acc, c) => acc + owed(c), 0), [items]);
 
   const correctionMut = useMutation({
-    mutationFn: (vars: {
-      id: string;
-      newPaidAmount: number;
-      reason: string;
-      proof: { uri: string; name: string; type: string } | null;
-    }) =>
-      financeApi.requestContributionCorrection(vars.id, vars.newPaidAmount, vars.reason, vars.proof),
+    mutationFn: (vars: { id: string; newPaidAmount: number; reason: string }) =>
+      financeApi.requestContributionCorrection(vars.id, vars.newPaidAmount, vars.reason, null),
     onSuccess: () => {
       closeModal();
       qc.invalidateQueries({ queryKey: ['contributions'] });
-      Alert.alert('Demande envoyée', 'Votre demande et sa preuve sont en attente de validation du bureau.');
+      Alert.alert('Demande envoyée', 'Votre demande de correction attend la validation du bureau.');
     },
     onError: (e: any) => {
       // Log détaillé pour la console (Metro / adb logcat) — diagnostic backend.
       console.log('[Regulariser] Échec demande de correction:', {
         status: e?.response?.status,
-        statusText: e?.response?.statusText,
         data: e?.response?.data,
         message: e?.message,
-        url: e?.config?.url,
-        method: e?.config?.method,
+      });
+      Alert.alert('Erreur', apiErrorMessage(e));
+    },
+  });
+
+  // Régularisation d'un impayé : re-soumission de la cotisation en défaut avec
+  // justificatif (multipart). Le serveur recycle la ligne DEFAULTED — y compris
+  // séance close — la repasse en « soumise » sans mouvement comptable, et la
+  // compensation du débit de défaut s'exécute à la validation par le bureau.
+  const regularizeMut = useMutation({
+    mutationFn: (vars: {
+      contribution: Contribution;
+      amount: number;
+      method: Method;
+      proof: { uri: string; name: string; type: string };
+    }) => {
+      const c = vars.contribution;
+      const form = new FormData();
+      form.append('session', c.session);
+      form.append('membership', c.membership);
+      form.append('tontine_type', c.tontine_type);
+      form.append('num_shares', String(Number(c.num_shares) || 1));
+      form.append('rate_per_share', String(Number(c.rate_per_share) || Number(c.expected_amount) || 0));
+      form.append('expected_amount', String(c.expected_amount));
+      form.append('paid_amount', String(vars.amount));
+      form.append('status', 'submitted');
+      form.append('payment_method', vars.method);
+      form.append('contribution_justification', vars.proof as any);
+      return financeApi.createContribution(form);
+    },
+    onSuccess: () => {
+      closeModal();
+      qc.invalidateQueries({ queryKey: ['contributions'] });
+      qc.invalidateQueries({ queryKey: ['wallet'] });
+      Alert.alert(
+        'Régularisation soumise',
+        'Votre règlement et sa preuve sont en attente de validation du bureau.',
+      );
+    },
+    onError: (e: any) => {
+      console.log('[Regulariser] Échec régularisation:', {
+        status: e?.response?.status,
+        data: e?.response?.data,
+        message: e?.message,
       });
       Alert.alert('Erreur', apiErrorMessage(e));
     },
@@ -118,10 +167,12 @@ export default function RegulariserScreen() {
     }
   };
 
-  const openModal = (c: Contribution) => {
+  const openModal = (c: Contribution, m: 'regularize' | 'correction') => {
     setSelected(c);
-    setAmount(String(c.expected_amount ?? ''));
+    setMode(m);
+    setAmount(m === 'regularize' ? String(owed(c) || '') : String(c.expected_amount ?? ''));
     setReason('');
+    setMethod('mobile_money');
     setProofUri(null);
     setFormError(null);
   };
@@ -130,6 +181,7 @@ export default function RegulariserScreen() {
     setSelected(null);
     setAmount('');
     setReason('');
+    setMethod('mobile_money');
     setProofUri(null);
     setFormError(null);
   };
@@ -150,16 +202,38 @@ export default function RegulariserScreen() {
       return;
     }
     setFormError(null);
-    // Interim : on envoie en JSON (sans le fichier) — le backend ne gère pas
-    // encore l'upload sur request-correction (500). La preuve sera réactivée
-    // (multipart) dès que le champ `submitted_justification` sera ajouté côté serveur.
-    correctionMut.mutate({
-      id: selected.id,
-      newPaidAmount: n,
-      reason: reason.trim(),
-      proof: null,
+    correctionMut.mutate({ id: selected.id, newPaidAmount: n, reason: reason.trim() });
+  };
+
+  const submitRegularize = () => {
+    if (!selected) return;
+    const due = owed(selected);
+    const n = Number(amount);
+    if (!(n > 0)) {
+      setFormError('Saisissez un montant valide.');
+      return;
+    }
+    if (n > due) {
+      setFormError(`Le montant ne peut pas dépasser le dû (${formatXAF(due)}).`);
+      return;
+    }
+    if (!proofUri) {
+      setFormError('Joignez une preuve de paiement (photo).');
+      return;
+    }
+    setFormError(null);
+    const fileName = proofUri.split('/').pop() || `preuve_${Date.now()}.jpg`;
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+    regularizeMut.mutate({
+      contribution: selected,
+      amount: n,
+      method,
+      proof: { uri: proofUri, name: fileName, type: mime },
     });
   };
+
+  const busy = correctionMut.isPending || regularizeMut.isPending;
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -243,15 +317,26 @@ export default function RegulariserScreen() {
                     <>
                       <Pressable style={[styles.btn, styles.btnDisabled]} disabled>
                         <Text style={[styles.btnText, styles.btnTextDisabled]}>
-                          Demander une correction
+                          Demande en cours
                         </Text>
                       </Pressable>
                       <Text style={styles.note}>Demande de correction déjà en cours.</Text>
                     </>
+                  ) : c.status === 'defaulted' ? (
+                    <>
+                      <Pressable
+                        style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]}
+                        onPress={() => openModal(c, 'regularize')}>
+                        <Text style={styles.btnText}>Régulariser (payer + preuve)</Text>
+                      </Pressable>
+                      <Text style={styles.note}>
+                        Votre règlement avec justificatif sera validé par le bureau.
+                      </Text>
+                    </>
                   ) : (
                     <Pressable
                       style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]}
-                      onPress={() => openModal(c)}>
+                      onPress={() => openModal(c, 'correction')}>
                       <Text style={styles.btnText}>Demander une correction</Text>
                     </Pressable>
                   )}
@@ -262,13 +347,15 @@ export default function RegulariserScreen() {
         )}
       </ScrollView>
 
-      {/* Modal de correction */}
+      {/* Modal : régularisation d'un impayé (avec preuve) ou demande de correction */}
       <Modal visible={!!selected} transparent animationType="fade" onRequestClose={closeModal}>
         <KeyboardAvoidingView
           style={styles.modalOverlay}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Demander une correction</Text>
+            <Text style={styles.modalTitle}>
+              {mode === 'regularize' ? 'Régulariser un impayé' : 'Demander une correction'}
+            </Text>
 
             {selected ? (
               <Text style={styles.modalContext}>
@@ -276,45 +363,76 @@ export default function RegulariserScreen() {
               </Text>
             ) : null}
 
-            <Text style={styles.fieldLabel}>Montant payé déclaré</Text>
+            <Text style={styles.fieldLabel}>
+              {mode === 'regularize' ? 'Montant versé' : 'Montant payé déclaré'}
+            </Text>
             <TextInput
               style={styles.input}
               value={amount}
-              onChangeText={setAmount}
+              onChangeText={(t) => {
+                setAmount(t);
+                setFormError(null);
+              }}
               keyboardType="numeric"
               placeholder="Montant"
               placeholderTextColor={colors.placeholder}
             />
 
-            <Text style={styles.fieldLabel}>Motif</Text>
-            <TextInput
-              style={[styles.input, styles.textarea]}
-              value={reason}
-              onChangeText={setReason}
-              multiline
-              placeholder="Expliquez (ex: payé en espèces le ...)"
-              placeholderTextColor={colors.placeholder}
-            />
+            {mode === 'regularize' ? (
+              <>
+                <Text style={styles.fieldLabel}>Méthode de paiement</Text>
+                <View style={styles.methodRow}>
+                  {METHODS.map((m) => {
+                    const on = m.key === method;
+                    return (
+                      <Pressable
+                        key={m.key}
+                        onPress={() => setMethod(m.key)}
+                        style={[styles.methodChip, on && styles.methodChipOn]}>
+                        <Ionicons name={m.icon} size={18} color={on ? colors.primary : colors.textMuted} />
+                        <Text style={[styles.methodChipText, on && styles.methodChipTextOn]}>{m.label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
 
-            <Text style={styles.fieldLabel}>Preuve (bientôt)</Text>
-            <View style={styles.proofRow}>
-              <Pressable style={styles.proofBtn} onPress={() => pickFrom('camera')}>
-                <Ionicons name="camera-outline" size={20} color={colors.primary} />
-                <Text style={styles.proofBtnText}>Photo</Text>
-              </Pressable>
-              <Pressable style={styles.proofBtn} onPress={() => pickFrom('gallery')}>
-                <Ionicons name="image-outline" size={20} color={colors.primary} />
-                <Text style={styles.proofBtnText}>Galerie</Text>
-              </Pressable>
-            </View>
-            {proofUri ? (
-              <Image source={{ uri: proofUri }} style={styles.proofPreview} resizeMode="cover" />
-            ) : null}
+                <Text style={styles.fieldLabel}>Preuve de paiement</Text>
+                <View style={styles.proofRow}>
+                  <Pressable style={styles.proofBtn} onPress={() => pickFrom('camera')}>
+                    <Ionicons name="camera-outline" size={20} color={colors.primary} />
+                    <Text style={styles.proofBtnText}>Photo</Text>
+                  </Pressable>
+                  <Pressable style={styles.proofBtn} onPress={() => pickFrom('gallery')}>
+                    <Ionicons name="image-outline" size={20} color={colors.primary} />
+                    <Text style={styles.proofBtnText}>Galerie</Text>
+                  </Pressable>
+                </View>
+                {proofUri ? (
+                  <Image source={{ uri: proofUri }} style={styles.proofPreview} resizeMode="cover" />
+                ) : null}
 
-            <Text style={styles.modalNote}>
-              La demande (montant + motif) est validée par le président et un membre du bureau.
-              L'envoi de la preuve photo sera activé prochainement.
-            </Text>
+                <Text style={styles.modalNote}>
+                  Votre règlement + preuve seront inspectés par le bureau ; l'impayé (et sa pénalité
+                  éventuelle) est soldé après validation.
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.fieldLabel}>Motif</Text>
+                <TextInput
+                  style={[styles.input, styles.textarea]}
+                  value={reason}
+                  onChangeText={setReason}
+                  multiline
+                  placeholder="Expliquez (ex: payé en espèces le ...)"
+                  placeholderTextColor={colors.placeholder}
+                />
+                <Text style={styles.modalNote}>
+                  La demande (montant + motif) est validée par le président et un membre du bureau,
+                  sous 24 h.
+                </Text>
+              </>
+            )}
 
             {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
 
@@ -322,14 +440,14 @@ export default function RegulariserScreen() {
               <Pressable
                 style={({ pressed }) => [styles.modalBtn, styles.modalBtnGhost, pressed && styles.btnPressed]}
                 onPress={closeModal}
-                disabled={correctionMut.isPending}>
+                disabled={busy}>
                 <Text style={styles.modalBtnGhostText}>Annuler</Text>
               </Pressable>
               <Pressable
                 style={({ pressed }) => [styles.modalBtn, styles.btn, pressed && styles.btnPressed]}
-                onPress={submitCorrection}
-                disabled={correctionMut.isPending}>
-                {correctionMut.isPending ? (
+                onPress={mode === 'regularize' ? submitRegularize : submitCorrection}
+                disabled={busy}>
+                {busy ? (
                   <ActivityIndicator color={colors.white} />
                 ) : (
                   <Text style={styles.btnText}>Envoyer</Text>
@@ -437,6 +555,23 @@ const styles = StyleSheet.create({
     backgroundColor: colors.inputBg,
   },
   textarea: { minHeight: 88, textAlignVertical: 'top' },
+  methodRow: { flexDirection: 'row', gap: 8 },
+  methodChip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minHeight: 44,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 6,
+  },
+  methodChipOn: { borderColor: colors.primary, backgroundColor: colors.greenBg },
+  methodChipText: { fontSize: font.size.xs, fontWeight: font.semibold, color: colors.textMuted },
+  methodChipTextOn: { color: colors.primary },
   proofRow: { flexDirection: 'row', gap: 10 },
   proofBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 44, borderRadius: radius.md, borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.surface },
   proofBtnText: { fontSize: font.size.sm, fontWeight: font.semibold, color: colors.primary },

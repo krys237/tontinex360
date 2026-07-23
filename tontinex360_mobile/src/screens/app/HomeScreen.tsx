@@ -75,7 +75,14 @@ export default function HomeScreen() {
 
   const walletQ = useQuery({ queryKey: ['wallet', 'me'], queryFn: walletsApi.myWallet });
   const unreadQ = useQuery({ queryKey: ['notifications', 'unread'], queryFn: notificationsApi.unreadCount });
-  const contribQ = useQuery({ queryKey: ['contributions', 'mine'], queryFn: () => financeApi.contributions() });
+  // ⚠ Filtre membership indispensable : sans lui le serveur renvoie les
+  // cotisations de TOUTE l'association et le compteur « en retard » de
+  // l'accueil comptait les impayés des autres membres.
+  const contribQ = useQuery({
+    queryKey: ['contributions', 'mine', membership?.id ?? null],
+    queryFn: () => financeApi.contributions(membership ? { membership: membership.id } : undefined),
+    enabled: !!membership,
+  });
   const activityQ = useQuery({ queryKey: ['notifications', 'recent'], queryFn: () => notificationsApi.list() });
   const cycleQ = useQuery({ queryKey: ['cycle', 'current'], queryFn: cyclesApi.current });
   const subsQ = useQuery({ queryKey: ['tontines', 'subs'], queryFn: () => tontinesApi.subscriptions() });

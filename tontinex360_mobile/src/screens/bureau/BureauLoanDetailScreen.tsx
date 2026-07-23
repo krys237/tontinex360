@@ -2,22 +2,20 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useRoute, type RouteProp } from '@react-navigation/native';
 
 import { Card, TextField, PrimaryButton, OutlineButton } from '../../components/ui';
 import StatusChip from '../../components/bureau/StatusChip';
 import RequirePermission from '../../components/bureau/RequirePermission';
+import LoanDecisionModal, { type LoanDecisionMode } from '../../components/bureau/LoanDecisionModal';
 import type { BureauStackParamList } from '../../navigation/types';
 import { financeApi } from '../../lib/api/finance';
 import { loanStatus } from '../../lib/bureau/finance-labels';
-import { useApprovalAction } from '../../lib/hooks/use-approval-action';
 import { colors } from '../../theme/colors';
 import { font } from '../../theme/typography';
 import { radius, spacing } from '../../theme/spacing';
 import { formatXAF, formatNumber, formatDateFr } from '../../lib/utils/format';
 
-type Nav = NativeStackNavigationProp<BureauStackParamList, 'BureauLoanDetail'>;
 type Rt = RouteProp<BureauStackParamList, 'BureauLoanDetail'>;
 
 function errMsg(e: any): string {
@@ -25,11 +23,11 @@ function errMsg(e: any): string {
 }
 
 export default function BureauLoanDetailScreen() {
-  const navigation = useNavigation<Nav>();
   const { id } = useRoute<Rt>().params;
   const qc = useQueryClient();
   const [counter, setCounter] = useState(false);
   const [amount, setAmount] = useState('');
+  const [decision, setDecision] = useState<LoanDecisionMode | null>(null);
 
   const q = useQuery({
     queryKey: ['bureau', 'loan', id],
@@ -40,17 +38,6 @@ export default function BureauLoanDetailScreen() {
     qc.invalidateQueries({ queryKey: ['bureau', 'loan', id] });
     qc.invalidateQueries({ queryKey: ['bureau', 'loans'] });
   };
-
-  const approveMut = useApprovalAction({
-    onSuccess: (req) => {
-      invalidate();
-      Alert.alert('Demande envoyée', 'L’approbation du prêt a été soumise au bureau.', [
-        { text: 'Voir', onPress: () => navigation.navigate('BureauApprovalDetail', { id: req.id }) },
-        { text: 'OK' },
-      ]);
-    },
-    onError: (e) => Alert.alert('Erreur', errMsg(e)),
-  });
 
   const counterMut = useMutation({
     mutationFn: () => financeApi.counterOfferLoan(id, Number(amount)),
@@ -81,6 +68,8 @@ export default function BureauLoanDetailScreen() {
   const st = loanStatus(l.status);
   const remaining = Number(l.remaining ?? Number(l.total_due) - Number(l.total_repaid)) || 0;
   const isPending = l.status === 'pending';
+  // Le refus reste possible tant que le prêt n'est pas décaissé (mêmes règles que le serveur).
+  const canDecide = ['pending', 'counter_offered', 'awaiting_guarantors'].includes(String(l.status));
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -100,11 +89,25 @@ export default function BureauLoanDetailScreen() {
           <Info label="Remboursé" value={formatXAF(l.total_repaid)} />
           <Info label="Restant" value={formatXAF(remaining)} />
           {l.due_date ? <Info label="Échéance" value={formatDateFr(l.due_date, false)} /> : null}
+          {l.source_fund || l.source_fund_name ? (
+            <Info label="Fonds source" value={l.source_fund_name ?? 'Fonds'} />
+          ) : null}
           {l.purpose || l.reason ? <Info label="Motif" value={l.purpose || l.reason || ''} /> : null}
         </Card>
 
-        {/* Actions (prêt en attente) */}
-        {isPending ? (
+        {/* Contre-offre en attente de la réponse du membre */}
+        {l.status === 'counter_offered' ? (
+          <Card style={styles.card}>
+            <Text style={styles.counterTitle}>Contre-offre envoyée</Text>
+            <Text style={styles.counterText}>
+              {formatXAF(l.approved_amount ?? 0)} proposé au membre
+              {l.counter_offer_note ? ` — « ${l.counter_offer_note} »` : ''}. En attente de sa réponse.
+            </Text>
+          </Card>
+        ) : null}
+
+        {/* Actions bureau : décision directe (approbation = décaissement immédiat) */}
+        {canDecide ? (
           <RequirePermission bureau>
             {counter ? (
               <Card style={styles.card}>
@@ -121,33 +124,48 @@ export default function BureauLoanDetailScreen() {
                     title="Proposer"
                     onPress={() => counterMut.mutate()}
                     loading={counterMut.isPending}
-                    disabled={!Number(amount)}
+                    disabled={!Number(amount) || Number(amount) >= Number(l.amount)}
                     style={styles.flex}
                   />
                 </View>
               </Card>
             ) : (
               <View style={{ gap: spacing.sm }}>
-                <PrimaryButton
-                  title="Approuver le prêt"
-                  loading={approveMut.isPending}
-                  onPress={() =>
-                    approveMut.mutate({
-                      action: 'loan.approve',
-                      targetId: id,
-                      reason: 'Approbation du prêt via l’application mobile',
-                    })
-                  }
-                />
-                <OutlineButton title="Faire une contre-offre" onPress={() => setCounter(true)} />
-                <Text style={styles.hint}>
-                  L’approbation nécessite la validation du président et d’un membre du bureau.
-                </Text>
+                {isPending ? (
+                  <>
+                    <PrimaryButton title="Approuver et décaisser" onPress={() => setDecision('approve')} />
+                    <OutlineButton title="Faire une contre-offre" onPress={() => setCounter(true)} />
+                  </>
+                ) : null}
+                <OutlineButton title="Refuser le prêt" onPress={() => setDecision('reject')} />
+                {isPending ? (
+                  <Text style={styles.hint}>
+                    L’approbation décaisse immédiatement le prêt depuis le fonds que vous choisirez.
+                  </Text>
+                ) : null}
               </View>
             )}
           </RequirePermission>
         ) : null}
       </ScrollView>
+
+      {decision ? (
+        <LoanDecisionModal
+          loan={l}
+          mode={decision}
+          onClose={() => setDecision(null)}
+          onDone={(updated) => {
+            setDecision(null);
+            invalidate();
+            Alert.alert(
+              decision === 'approve' ? 'Prêt décaissé' : 'Prêt refusé',
+              decision === 'approve'
+                ? `${formatXAF(updated.amount)} décaissé${updated.source_fund_name ? ` depuis « ${updated.source_fund_name} »` : ' depuis la trésorerie générale'}. Le membre est notifié.`
+                : 'La demande a été annulée. Le membre est notifié.',
+            );
+          }}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -175,4 +193,6 @@ const styles = StyleSheet.create({
   infoValue: { fontSize: font.size.sm, fontWeight: font.semibold, color: colors.text },
   actionRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   hint: { fontSize: font.size.xs, color: colors.textMuted, textAlign: 'center' },
+  counterTitle: { fontSize: font.size.sm, fontWeight: font.bold, color: colors.text },
+  counterText: { fontSize: font.size.sm, color: colors.textMuted, marginTop: 2 },
 });

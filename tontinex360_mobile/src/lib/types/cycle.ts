@@ -58,6 +58,11 @@ export interface SessionAttendance {
   status: AttendanceStatus;
   represented_by?: string | null;
   notes?: string;
+  /** Horodatage d'arrivée — posé par le serveur (join/ ou saisie bureau), jamais par le client. */
+  checked_in_at?: string | null;
+  checked_in_by?: string | null;
+  /** Origine du pointage : self (bouton « Je suis présent ») ou bureau. */
+  source?: 'self' | 'bureau' | string;
 }
 
 export type AuctionBidStatus = 'active' | 'won' | 'lost' | 'cancelled';

@@ -51,6 +51,21 @@ export interface SessionReport {
   created_at: string;
 }
 
+/** Politique de pointage de l'association (Association.settings.attendance). */
+export interface AttendanceConfig {
+  /** manual = le bureau pose les statuts ; auto = présent/retard selon la marge. */
+  mode: 'manual' | 'auto';
+  late_after_minutes: number;
+  absent_on_close: boolean;
+  allow_self_checkin: boolean;
+}
+
+export interface JoinSessionResult {
+  created: boolean;
+  attendance: SessionAttendance;
+  mode: AttendanceConfig['mode'];
+}
+
 export const sessionsApi = {
   list: (params?: { cycle?: string; status?: string }) =>
     api
@@ -91,6 +106,21 @@ export const sessionsApi = {
   }) => api.post<SessionAttendance>('/cycles/attendances/', data).then((r) => r.data),
   updateAttendance: (id: string, data: Partial<SessionAttendance>) =>
     api.patch<SessionAttendance>(`/cycles/attendances/${id}/`, data).then((r) => r.data),
+
+  /** Self check-in du membre (« Je suis présent ») sur une séance ouverte.
+   *  Le STATUT est décidé par le serveur : présent/retard selon la marge en
+   *  mode auto, présent en mode manuel (le bureau ajuste). Idempotent : ne
+   *  déplace pas l'heure d'arrivée et n'écrase jamais une décision bureau. */
+  joinSession: (sessionId: string) =>
+    api.post<JoinSessionResult>(`/cycles/sessions/${sessionId}/join/`, {}).then((r) => r.data),
+
+  /** Politique de pointage — lecture ouverte à tout membre. */
+  attendanceConfig: () =>
+    api.get<AttendanceConfig>('/cycles/attendance-config/').then((r) => r.data),
+
+  /** Politique de pointage — modification réservée au bureau. */
+  updateAttendanceConfig: (data: Partial<AttendanceConfig>) =>
+    api.patch<AttendanceConfig>('/cycles/attendance-config/', data).then((r) => r.data),
 
   // ---------- Procès-verbaux ----------
   reports: (sessionId: string) =>

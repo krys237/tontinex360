@@ -9,6 +9,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Card, IconBubble } from '../../components/ui';
 import TabsRow from '../../components/bureau/TabsRow';
 import type { BureauStackParamList } from '../../navigation/types';
+import type { FundSource } from '../../lib/types/finance';
 import { financeApi } from '../../lib/api/finance';
 import { colors } from '../../theme/colors';
 import { font } from '../../theme/typography';
@@ -23,6 +24,8 @@ const ACCOUNT_TYPE: Record<string, string> = { cash: 'Espèces', bank: 'Banque',
 export default function BureauTreasuryScreen() {
   const navigation = useNavigation<Nav>();
   const [view, setView] = useState<'physical' | 'funds'>('physical');
+  // Accordéon (un seul fonds déplié) : 'unassigned' pour le bloc non affecté.
+  const [expandedFund, setExpandedFund] = useState<string | null>(null);
 
   const accountsQ = useQuery({ queryKey: ['bureau', 'treasury'], queryFn: () => financeApi.treasury(), retry: false });
   const fundsQ = useQuery({ queryKey: ['bureau', 'tontine-balances'], queryFn: () => financeApi.tontineBalances(), enabled: view === 'funds', retry: false });
@@ -62,6 +65,11 @@ export default function BureauTreasuryScreen() {
             <Ionicons name="document-text-outline" size={18} color={colors.goldAccent} />
             <Text style={styles.linkTitle}>Prêts</Text>
             <Text style={styles.linkSub}>Voir le détail →</Text>
+          </Pressable>
+          <Pressable style={styles.linkCard} onPress={() => navigation.navigate('BureauWithdrawals')}>
+            <Ionicons name="arrow-up-circle-outline" size={18} color={colors.danger} />
+            <Text style={styles.linkTitle}>Retraits</Text>
+            <Text style={styles.linkSub}>Gérer →</Text>
           </Pressable>
         </View>
 
@@ -114,26 +122,48 @@ export default function BureauTreasuryScreen() {
               <Text style={styles.muted}>Indisponible.</Text>
             ) : (
               <>
-                {fundsQ.data.funds.map((f, i) => (
-                  <View key={f.tontine_type_id} style={[styles.fundRow, i > 0 && styles.divider]}>
-                    <IconBubble icon="layers-outline" tint="primary" size={32} />
-                    <View style={styles.flex}>
-                      <Text style={styles.fundName}>{f.name}</Text>
-                      <Text style={styles.fundMeta}>+{formatXAF(f.credits)} − {formatXAF(f.debits)}</Text>
+                {fundsQ.data.funds.map((f, i) => {
+                  const isOpen = expandedFund === f.tontine_type_id;
+                  return (
+                    <View key={f.tontine_type_id}>
+                      <Pressable
+                        style={[styles.fundRow, i > 0 && styles.divider]}
+                        onPress={() => setExpandedFund(isOpen ? null : f.tontine_type_id)}>
+                        <IconBubble icon="layers-outline" tint="primary" size={32} />
+                        <View style={styles.flex}>
+                          <Text style={styles.fundName}>{f.name}</Text>
+                          <Text style={styles.fundMeta}>+{formatXAF(f.credits)} − {formatXAF(f.debits)}</Text>
+                        </View>
+                        <Text style={styles.fundBalance}>{formatXAF(f.balance)}</Text>
+                        <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={14} color={colors.textLight} />
+                      </Pressable>
+                      {isOpen ? (
+                        <View style={styles.fundDetail}>
+                          <SourceBreakdown sources={f.by_source} />
+                          <FundWeightsBlock fundId={f.tontine_type_id} />
+                        </View>
+                      ) : null}
                     </View>
-                    <Text style={styles.fundBalance}>{formatXAF(f.balance)}</Text>
-                  </View>
-                ))}
-                <View style={[styles.fundRow, styles.divider, styles.unassigned]}>
+                  );
+                })}
+                <Pressable
+                  style={[styles.fundRow, styles.divider, styles.unassigned]}
+                  onPress={() => setExpandedFund(expandedFund === 'unassigned' ? null : 'unassigned')}>
                   <IconBubble icon="help-circle-outline" tint="accent" size={32} />
                   <View style={styles.flex}>
                     <Text style={styles.fundName}>{fundsQ.data.unassigned.name ?? 'Non affecté'}</Text>
-                    <Text style={styles.fundMeta}>Frais admin / transactions sans tag</Text>
+                    <Text style={styles.fundMeta}>Frais admin / sanctions / transactions sans tag</Text>
                   </View>
                   <Text style={[styles.fundBalance, { color: Number(fundsQ.data.unassigned.balance) < 0 ? colors.danger : colors.text }]}>
                     {formatXAFSigned(Number(fundsQ.data.unassigned.balance))}
                   </Text>
-                </View>
+                  <Ionicons name={expandedFund === 'unassigned' ? 'chevron-up' : 'chevron-down'} size={14} color={colors.textLight} />
+                </Pressable>
+                {expandedFund === 'unassigned' ? (
+                  <View style={styles.fundDetail}>
+                    <SourceBreakdown sources={fundsQ.data.unassigned.by_source} />
+                  </View>
+                ) : null}
                 <View style={styles.totalLine}>
                   <Text style={styles.totalLineLabel}>Total virtuel</Text>
                   <Text style={styles.totalLineValue}>{formatXAF(fundsQ.data.total)}</Text>
@@ -143,6 +173,27 @@ export default function BureauTreasuryScreen() {
             )}
           </Card>
         )}
+
+        {/* Synthèse globale par source */}
+        {view === 'funds' && (fundsQ.data?.by_source_global?.length ?? 0) > 0 ? (
+          <Card style={styles.sectionCard}>
+            <View style={styles.sectionHead}>
+              <Text style={styles.sectionTitle}>Par source (toute la trésorerie)</Text>
+              <Text style={styles.sectionHint}>« D'où vient l'argent ? »</Text>
+            </View>
+            {(fundsQ.data!.by_source_global ?? []).map((src, i) => (
+              <View key={src.type} style={[styles.srcRow, i > 0 && styles.divider]}>
+                <View style={styles.flex}>
+                  <Text style={styles.fundName}>{src.label}</Text>
+                  <Text style={styles.fundMeta}>+{formatXAF(src.credit)} − {formatXAF(src.debit)}</Text>
+                </View>
+                <Text style={[styles.fundBalance, { color: Number(src.net) < 0 ? colors.danger : colors.primary }]}>
+                  {formatXAFSigned(Number(src.net))}
+                </Text>
+              </View>
+            ))}
+          </Card>
+        ) : null}
 
         {/* Dernières transactions */}
         <Card style={styles.sectionCard}>
@@ -168,6 +219,51 @@ export default function BureauTreasuryScreen() {
         </Card>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+/** Ventilation par source d'un fonds (cotisations, sanctions, prêts, dépenses…). */
+function SourceBreakdown({ sources }: { sources?: FundSource[] }) {
+  if (!sources || sources.length === 0) {
+    return <Text style={styles.detailEmpty}>Aucun mouvement ventilé sur ce fonds.</Text>;
+  }
+  return (
+    <View style={styles.detailBlock}>
+      <Text style={styles.detailTitle}>Par source</Text>
+      {sources.map((s) => (
+        <View key={s.type} style={styles.detailRow}>
+          <Text style={styles.detailLabel} numberOfLines={1}>{s.label}</Text>
+          <Text style={[styles.detailValue, { color: Number(s.net) < 0 ? colors.danger : colors.primary }]}>
+            {formatXAFSigned(Number(s.net))}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** Poids d'apport des membres — base du partage des intérêts de prêt. */
+function FundWeightsBlock({ fundId }: { fundId: string }) {
+  const q = useQuery({
+    queryKey: ['bureau', 'fund', fundId, 'weights'],
+    queryFn: () => financeApi.fundWeights(fundId),
+  });
+  if (q.isLoading) return <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.sm }} />;
+  const members = q.data?.members ?? [];
+  if (members.length === 0) return null;
+  return (
+    <View style={styles.detailBlock}>
+      <Text style={styles.detailTitle}>Poids des membres</Text>
+      <Text style={styles.detailHint}>Base du partage des intérêts de prêt de ce fonds.</Text>
+      {members.map((m) => (
+        <View key={m.membership} style={styles.detailRow}>
+          <Text style={styles.detailLabel} numberOfLines={1}>{m.member_name}</Text>
+          <Text style={styles.detailValue}>
+            {formatXAF(m.contributed)} · {Number(m.weight_pct).toFixed(1).replace('.', ',')} %
+          </Text>
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -204,6 +300,22 @@ const styles = StyleSheet.create({
   totalLineLabel: { fontSize: font.size.sm, fontWeight: font.bold, color: colors.text },
   totalLineValue: { fontSize: font.size.md, fontWeight: font.bold, color: colors.primary },
   note: { fontSize: font.size.xs, color: colors.info, fontStyle: 'italic', marginTop: spacing.xs },
+
+  srcRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm },
+  fundDetail: {
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  detailBlock: { gap: 4 },
+  detailTitle: { fontSize: 10, fontWeight: font.bold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
+  detailHint: { fontSize: font.size.xs, color: colors.textLight, fontStyle: 'italic' },
+  detailRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm, paddingVertical: 3 },
+  detailLabel: { flex: 1, fontSize: font.size.sm, color: colors.text },
+  detailValue: { fontSize: font.size.sm, fontWeight: font.semibold, color: colors.text },
+  detailEmpty: { fontSize: font.size.xs, color: colors.textMuted },
 
   txRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm },
   txDesc: { fontSize: font.size.sm, color: colors.text },

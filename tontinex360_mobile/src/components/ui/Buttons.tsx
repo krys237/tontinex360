@@ -80,20 +80,26 @@ export function SoftButton({ title, onPress, disabled, style }: BaseProps) {
 }
 
 /** White pill with green outline ("Renvoyer par SMS"). */
-export function OutlineButton({ title, onPress, disabled, style }: BaseProps) {
+export function OutlineButton({ title, onPress, loading, disabled, style }: BaseProps) {
+  const isDisabled = disabled || loading;
   return (
     <Pressable
       onPress={onPress}
-      disabled={disabled}
+      disabled={isDisabled}
       accessibilityRole="button"
+      accessibilityState={{ disabled: isDisabled }}
       style={({ pressed }) => [
         styles.base,
         styles.outline,
-        disabled && styles.disabled,
+        isDisabled && styles.disabled,
         pressedStyle(pressed),
         style,
       ]}>
-      <Text style={styles.outlineText}>{title}</Text>
+      {loading ? (
+        <ActivityIndicator color={colors.primary} />
+      ) : (
+        <Text style={styles.outlineText}>{title}</Text>
+      )}
     </Pressable>
   );
 }

@@ -19,7 +19,6 @@ import LoanRequestModal from '../../components/finance/LoanRequestModal';
 import { walletsApi } from '../../lib/api/wallets';
 import { financeApi } from '../../lib/api/finance';
 import { useAuthStore } from '../../lib/stores/auth-store';
-import type { LoanStatus } from '../../lib/types/finance';
 import { formatNumber, formatXAF, formatXAFSigned } from '../../lib/utils/format';
 import { colors } from '../../theme/colors';
 import { font } from '../../theme/typography';
@@ -34,13 +33,19 @@ function dateFR(iso?: string | null): string {
   return `${d.getDate()} ${MONTHS_FR[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-const LOAN_STATUS: Record<LoanStatus, { label: string; bg: string; fg: string }> = {
+const LOAN_STATUS: Record<string, { label: string; bg: string; fg: string }> = {
   pending: { label: 'En attente', bg: colors.goldSoft, fg: colors.goldAccent },
+  counter_offered: { label: 'Contre-offre', bg: colors.goldSoft, fg: colors.goldAccent },
+  awaiting_guarantors: { label: 'Attente garants', bg: colors.goldSoft, fg: colors.goldAccent },
   approved: { label: 'Approuvé', bg: colors.greenBg, fg: colors.primary },
   disbursed: { label: 'Décaissé', bg: colors.tintBlueBg, fg: colors.info },
   repaying: { label: 'En remboursement', bg: colors.tintBlueBg, fg: colors.info },
+  // Statuts hérités que le backend écrit hors énumération (validate_payment).
+  partial: { label: 'En remboursement', bg: colors.tintBlueBg, fg: colors.info },
+  completed: { label: 'Remboursé', bg: colors.greenBg, fg: colors.success },
   repaid: { label: 'Remboursé', bg: colors.greenBg, fg: colors.success },
   defaulted: { label: 'En défaut', bg: colors.dangerSoft, fg: colors.danger },
+  cancelled: { label: 'Annulé', bg: colors.surfaceAlt, fg: colors.textMuted },
 };
 
 export default function FinancesScreen() {
@@ -125,7 +130,7 @@ export default function FinancesScreen() {
             <Text style={styles.empty}>Aucun prêt en cours.</Text>
           ) : (
             loans.map((l, i) => {
-              const st = LOAN_STATUS[l.status as keyof typeof LOAN_STATUS] ?? LOAN_STATUS.pending;
+              const st = LOAN_STATUS[String(l.status)] ?? LOAN_STATUS.pending;
               const remaining = Number(l.remaining ?? (Number(l.total_due) - Number(l.total_repaid))) || 0;
               return (
                 <View key={l.id} style={[styles.loanRow, i > 0 && styles.loanDivider]}>

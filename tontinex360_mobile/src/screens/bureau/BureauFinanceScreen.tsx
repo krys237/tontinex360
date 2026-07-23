@@ -22,6 +22,7 @@ import ContributionCorrectionModal from '../../components/bureau/ContributionCor
 import ContributionTopUpModal from '../../components/bureau/ContributionTopUpModal';
 import LoanRequestModal from '../../components/bureau/LoanRequestModal';
 import ApprovalRequestModal, { type ApprovalField } from '../../components/bureau/ApprovalRequestModal';
+import LoanDecisionModal, { type LoanDecisionMode } from '../../components/bureau/LoanDecisionModal';
 import RequirePermission from '../../components/bureau/RequirePermission';
 import SearchBar from '../../components/bureau/SearchBar';
 import { filterByQuery } from '../../lib/search/text';
@@ -54,11 +55,13 @@ const STATUS_FILTERS: { key: string; label: string }[] = [
 const LOAN_STATUS_FILTERS: { key: string; label: string }[] = [
   { key: '', label: 'Tous statuts' },
   { key: 'pending', label: 'En attente' },
+  { key: 'counter_offered', label: 'Contre-offre' },
   { key: 'approved', label: 'Approuvé' },
   { key: 'disbursed', label: 'Décaissé' },
   { key: 'repaying', label: 'En remb.' },
   { key: 'repaid', label: 'Remboursé' },
   { key: 'defaulted', label: 'Défaut' },
+  { key: 'cancelled', label: 'Annulé' },
 ];
 
 type LoanAction = { loan: Loan; actionType: ApprovalActionType; title: string; fields: ApprovalField[]; contextSummary?: string };
@@ -78,6 +81,7 @@ export default function BureauFinanceScreen() {
   const [loanStatusFilter, setLoanStatusFilter] = useState('');
   const [showLoanForm, setShowLoanForm] = useState(false);
   const [loanAction, setLoanAction] = useState<LoanAction | null>(null);
+  const [loanDecision, setLoanDecision] = useState<{ loan: Loan; mode: LoanDecisionMode } | null>(null);
 
   const sessionsQ = useQuery({
     queryKey: ['bureau', 'sessions', 'finance'],
@@ -298,6 +302,7 @@ export default function BureauFinanceScreen() {
               loanList.map((l) => {
                 const st = loanStatus(l.status);
                 const canApprove = l.status === 'pending';
+                const canReject = ['pending', 'counter_offered', 'awaiting_guarantors'].includes(String(l.status));
                 const canModify = ['pending', 'approved', 'disbursed'].includes(String(l.status));
                 const canWriteOff = ['disbursed', 'repaying'].includes(String(l.status));
                 return (
@@ -326,14 +331,16 @@ export default function BureauFinanceScreen() {
                       </View>
                     </View>
 
-                    {(canApprove || canModify || canWriteOff) ? (
+                    {(canApprove || canReject || canModify || canWriteOff) ? (
                       <RequirePermission bureau>
                         <View style={styles.cActions}>
                           {canApprove ? (
-                            <MiniBtn icon="checkmark-circle" label="Approuver" tone="success" onPress={() => setLoanAction({
-                              loan: l, actionType: 'loan.approve', title: 'Approuver et décaisser le prêt',
-                              contextSummary: `${formatXAF(l.amount)} · taux ${Number(l.interest_rate)}% · total dû ${formatXAF(l.total_due)}`, fields: [],
-                            })} />
+                            <MiniBtn icon="checkmark-circle" label="Approuver" tone="success"
+                              onPress={() => setLoanDecision({ loan: l, mode: 'approve' })} />
+                          ) : null}
+                          {canReject ? (
+                            <MiniBtn icon="close-circle" label="Refuser" tone="danger"
+                              onPress={() => setLoanDecision({ loan: l, mode: 'reject' })} />
                           ) : null}
                           {canModify ? (
                             <MiniBtn icon="pencil" label="Modifier" tone="primary" onPress={() => setLoanAction({
@@ -464,6 +471,15 @@ export default function BureauFinanceScreen() {
           fields={loanAction.fields}
           onClose={() => setLoanAction(null)}
           onSubmitted={() => { setLoanAction(null); loansQ.refetch(); }}
+        />
+      ) : null}
+
+      {loanDecision ? (
+        <LoanDecisionModal
+          loan={loanDecision.loan}
+          mode={loanDecision.mode}
+          onClose={() => setLoanDecision(null)}
+          onDone={() => { setLoanDecision(null); loansQ.refetch(); }}
         />
       ) : null}
     </SafeAreaView>

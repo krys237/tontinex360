@@ -9,6 +9,8 @@ import type { WorkspaceStackParamList } from '../../navigation/types';
 import type { AssociationSearchResult } from '../../lib/types/auth';
 import { authApi } from '../../lib/api/auth';
 import { membersApi } from '../../lib/api/members';
+import { invitationsApi, type InvitationCheck } from '../../lib/api/invitations';
+import { refreshWorkspace } from '../../lib/auth/session';
 import { colors } from '../../theme/colors';
 import { font } from '../../theme/typography';
 import { radius, spacing } from '../../theme/spacing';
@@ -21,9 +23,55 @@ function initials(name: string): string {
   return ((p[0]?.[0] ?? '') + (p[1]?.[0] ?? '')).toUpperCase() || '?';
 }
 
+/** Extrait le token d'invitation d'un texte collé (token brut ou lien complet). */
+function extractToken(raw: string): string {
+  const t = raw.trim();
+  if (!t.includes('/')) return t;
+  const path = t.split('?')[0].split('#')[0];
+  const segments = path.split('/').filter(Boolean);
+  return segments[segments.length - 1] ?? '';
+}
+
 export default function JoinRequestScreen({ navigation }: Props) {
   const [query, setQuery] = useState('');
   const trimmed = query.trim();
+
+  // ── Invitation par code/lien (utilisateur déjà connecté) ──
+  const [inviteInput, setInviteInput] = useState('');
+  const [checked, setChecked] = useState<InvitationCheck | null>(null);
+
+  const checkMut = useMutation({
+    mutationFn: (token: string) => invitationsApi.check(token),
+    onSuccess: (res) => setChecked(res),
+    onError: (e: any) => {
+      setChecked(null);
+      const status = e?.response?.status;
+      Alert.alert(
+        'Invitation invalide',
+        status === 410
+          ? 'Cette invitation a expiré ou a déjà été utilisée.'
+          : status === 404
+            ? 'Invitation introuvable — vérifiez le code ou le lien collé.'
+            : e?.response?.data?.error ?? 'Vérification impossible pour le moment.',
+      );
+    },
+  });
+
+  const acceptMut = useMutation({
+    mutationFn: (token: string) => invitationsApi.accept(token),
+    onSuccess: async (res) => {
+      setChecked(null);
+      setInviteInput('');
+      // Resynchronise la liste des associations : la nouvelle adhésion
+      // apparaît dans ChooseAssociation sans se reconnecter.
+      await refreshWorkspace().catch(() => {});
+      Alert.alert('Bienvenue !', res.message ?? 'Invitation acceptée.', [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
+    },
+    onError: (e: any) =>
+      Alert.alert('Erreur', e?.response?.data?.error ?? e?.response?.data?.detail ?? "Impossible d'accepter l'invitation."),
+  });
 
   const searchQ = useQuery({
     queryKey: ['assoc-search', trimmed],
@@ -61,6 +109,62 @@ export default function JoinRequestScreen({ navigation }: Props) {
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>Rejoindre une association</Text>
+
+        {/* Invitation reçue (code ou lien) */}
+        <View style={styles.inviteCard}>
+          <View style={styles.inviteHead}>
+            <Ionicons name="mail-open-outline" size={18} color={colors.primary} />
+            <Text style={styles.inviteTitle}>J'ai reçu une invitation</Text>
+          </View>
+          <View style={styles.inviteRow}>
+            <TextInput
+              style={styles.inviteInput}
+              placeholder="Collez le lien ou le code reçu…"
+              placeholderTextColor={colors.textLight}
+              value={inviteInput}
+              onChangeText={(t) => {
+                setInviteInput(t);
+                setChecked(null);
+              }}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <Pressable
+              style={[styles.inviteCheckBtn, (!extractToken(inviteInput) || checkMut.isPending) && { opacity: 0.5 }]}
+              onPress={() => checkMut.mutate(extractToken(inviteInput))}
+              disabled={!extractToken(inviteInput) || checkMut.isPending}>
+              {checkMut.isPending ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                <Text style={styles.inviteCheckText}>Vérifier</Text>
+              )}
+            </Pressable>
+          </View>
+
+          {checked ? (
+            <View style={styles.invitePreview}>
+              <Text style={styles.invitePreviewName}>{checked.invitation.association_name}</Text>
+              <Text style={styles.invitePreviewMeta}>
+                Invité par {checked.invitation.invited_by} · rôle : {checked.invitation.role_name}
+              </Text>
+              {checked.invitation.message?.trim() ? (
+                <Text style={styles.invitePreviewMsg}>« {checked.invitation.message.trim()} »</Text>
+              ) : null}
+              <Pressable
+                style={[styles.inviteAcceptBtn, acceptMut.isPending && { opacity: 0.6 }]}
+                onPress={() => acceptMut.mutate(checked.invitation.token)}
+                disabled={acceptMut.isPending}>
+                {acceptMut.isPending ? (
+                  <ActivityIndicator size="small" color={colors.white} />
+                ) : (
+                  <Text style={styles.inviteAcceptText}>Accepter l'invitation</Text>
+                )}
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
+
+        <Text style={styles.orLabel}>Ou recherchez une association :</Text>
 
         <View style={styles.searchBox}>
           <Ionicons name="search" size={18} color={colors.textLight} />
@@ -116,6 +220,46 @@ const styles = StyleSheet.create({
   backText: { fontSize: font.size.sm, color: colors.text, fontWeight: font.semibold },
   scroll: { padding: spacing.lg, gap: spacing.sm, paddingBottom: spacing.x5 },
   title: { fontSize: font.size.xl, fontWeight: font.bold, color: colors.heading },
+
+  // Invitation par code/lien
+  inviteCard: { backgroundColor: colors.white, borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm, ...cardShadow },
+  inviteHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  inviteTitle: { fontSize: font.size.sm, fontWeight: font.bold, color: colors.text },
+  inviteRow: { flexDirection: 'row', gap: 8 },
+  inviteInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    minHeight: 44,
+    fontSize: font.size.sm,
+    color: colors.text,
+    backgroundColor: colors.white,
+  },
+  inviteCheckBtn: {
+    minHeight: 44,
+    paddingHorizontal: 16,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inviteCheckText: { color: colors.white, fontSize: font.size.sm, fontWeight: font.bold },
+  invitePreview: { backgroundColor: colors.greenBg, borderRadius: radius.md, padding: spacing.md, gap: 4 },
+  invitePreviewName: { fontSize: font.size.md, fontWeight: font.bold, color: colors.text },
+  invitePreviewMeta: { fontSize: font.size.xs, color: colors.textMuted },
+  invitePreviewMsg: { fontSize: font.size.sm, color: colors.text, fontStyle: 'italic' },
+  inviteAcceptBtn: {
+    marginTop: 6,
+    minHeight: 44,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inviteAcceptText: { color: colors.white, fontSize: font.size.sm, fontWeight: font.bold },
+  orLabel: { fontSize: font.size.sm, color: colors.textMuted, marginTop: spacing.xs },
 
   searchBox: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.white, borderRadius: radius.pill, paddingHorizontal: spacing.md, height: 48, ...cardShadow },
   searchInput: { flex: 1, fontSize: font.size.md, color: colors.text, padding: 0 },

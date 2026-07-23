@@ -81,6 +81,8 @@ export const BUREAU_CATALOG: CatalogEntry[] = [
     keywords: ['garantie', 'caution', 'aval', 'pret', 'garant'] },
   { key: 'treasury', module: 'Finance', label: 'Trésorerie', icon: 'wallet', route: 'BureauTreasury',
     keywords: ['tresorerie', 'caisse', 'solde', 'compte', 'banque', 'liquidite'] },
+  { key: 'withdrawals', module: 'Finance', label: 'Retraits de trésorerie', icon: 'arrow-up-circle', route: 'BureauWithdrawals',
+    keywords: ['retrait', 'depense', 'sortie', 'fonds', 'decaissement', 'remboursable', 'dette'] },
   { key: 'wallets', module: 'Finance', label: 'Portefeuilles', icon: 'card', route: 'BureauWallets',
     keywords: ['portefeuille', 'wallet', 'solde', 'ajustement', 'compte', 'membre'] },
 

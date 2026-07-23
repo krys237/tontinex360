@@ -73,11 +73,14 @@ export interface ArrearsPreview {
 
 export type LoanStatus =
   | 'pending'
+  | 'counter_offered'
+  | 'awaiting_guarantors'
   | 'approved'
   | 'disbursed'
   | 'repaying'
   | 'repaid'
-  | 'defaulted';
+  | 'defaulted'
+  | 'cancelled';
 
 export interface LoanGuarantorAcceptance {
   id: string;
@@ -108,6 +111,10 @@ export interface Loan {
   purpose?: string;
   reason?: string;
   approved_by?: string | null;
+  /** Fonds d'où sort l'argent (TontineType id), null = trésorerie générale.
+   *  Choisi par le bureau à l'approbation, lecture seule ensuite. */
+  source_fund?: string | null;
+  source_fund_name?: string | null;
   requester_decision?: 'none' | 'accepted' | 'declined';
   requester_decided_at?: string | null;
   counter_offer_note?: string;
@@ -128,6 +135,15 @@ export interface MyGuaranteeItem {
   loan: Loan;
 }
 
+/** Ventilation par source (transaction_type) : cotisations, sanctions, prêts… */
+export interface FundSource {
+  type: string;
+  label: string;
+  credit: number | string;
+  debit: number | string;
+  net: number | string;
+}
+
 export interface TontineBalances {
   funds: Array<{
     tontine_type_id: string;
@@ -137,9 +153,24 @@ export interface TontineBalances {
     credits: number | string;
     debits: number | string;
     balance: number | string;
+    by_source?: FundSource[];
   }>;
-  unassigned: { name: string; balance: number | string };
+  unassigned: { name: string; balance: number | string; by_source?: FundSource[] };
+  by_source_global?: FundSource[];
   total: number | string;
+}
+
+/** Poids d'apport des membres dans un fonds (base du partage des intérêts). */
+export interface FundWeights {
+  fund: { id: string; name: string };
+  session: string | null;
+  total: string;
+  members: Array<{
+    membership: string;
+    member_name: string;
+    contributed: string;
+    weight_pct: string;
+  }>;
 }
 
 // ---------- Remboursements ----------
@@ -166,6 +197,42 @@ export interface LoanRepayment {
   rejected_at?: string | null;
   rejection_reason?: string;
   borrower_name?: string;
+}
+
+// ---------- Retraits de trésorerie ----------
+export type TreasuryWithdrawalStatus = 'pending' | 'applied' | 'rejected' | 'cancelled';
+
+/**
+ * Retrait sur un fonds (dépense décidée par le bureau). Créé en `pending`,
+ * l'argent ne bouge qu'à l'application via le moteur d'approbations
+ * (action `treasury.withdraw`, double validation). Si remboursable, la
+ * dette est répartie à parts égales entre les membres actifs.
+ */
+export interface TreasuryWithdrawal {
+  id: string;
+  /** Fonds débité (TontineType id), null = fonds général / non affecté. */
+  source_fund: string | null;
+  source_fund_name?: string | null;
+  amount: number | string;
+  reason: string;
+  session?: string | null;
+  is_repayable: boolean;
+  status: TreasuryWithdrawalStatus;
+  created_by?: string | null;
+  created_by_name?: string | null;
+  applied_by?: string | null;
+  applied_at?: string | null;
+  transaction?: string | null;
+  created_at: string;
+}
+
+/** Part due par un membre sur un retrait remboursable. */
+export interface WithdrawalDebt {
+  membership: string;
+  member_name: string;
+  share: number | string;
+  repaid: number | string;
+  outstanding: number | string;
 }
 
 // ---------- Trésorerie ----------

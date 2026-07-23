@@ -58,12 +58,14 @@ export default function InviteAcceptScreen({ navigation }: Props) {
   };
 
   const finish = () => {
-    // TODO(Phase 1 wiring): with the invitation token (deep link) call
-    // invitationsApi.registerAndAccept({ token, telephone, first_name, last_name, email, password })
-    // then enter the app. Exact payload to confirm against /swagger/.
+    // TODO(deep link) : câbler ce wizard sur POST /invitations/register-and-accept/
+    // (token + telephone + first_name + last_name + email + password/password_confirm)
+    // quand le linking `tontinex360://` sera configuré dans la navigation.
+    // En attendant, un utilisateur CONNECTÉ accepte son invitation via
+    // Espace de travail → Rejoindre une association → « J'ai reçu une invitation ».
     Alert.alert(
       'Invitation',
-      'Profil prêt. La validation de l’invitation sera connectée au lien reçu (token).',
+      "Profil prêt. Si vous avez déjà un compte, connectez-vous puis collez votre lien d'invitation dans « Rejoindre une association ».",
     );
   };
 

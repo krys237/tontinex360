@@ -14,6 +14,7 @@ export const ACTION_LABELS: Record<string, string> = {
   'loan.approve': 'Approbation de prêt',
   'loan.modify': 'Modification de prêt',
   'loan.write_off': 'Radiation de prêt',
+  'treasury.withdraw': 'Retrait de trésorerie',
   'cycle.close': 'Clôture de cycle',
   'session.cancel': 'Annulation de séance',
   'election.validate_results': 'Validation d’élection',

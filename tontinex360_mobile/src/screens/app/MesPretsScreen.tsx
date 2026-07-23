@@ -22,7 +22,7 @@ import { Card, SectionHeader } from '../../components/ui';
 import LoanRequestModal from '../../components/finance/LoanRequestModal';
 import { financeApi } from '../../lib/api/finance';
 import { useAuthStore } from '../../lib/stores/auth-store';
-import type { LoanStatus, Loan } from '../../lib/types/finance';
+import type { Loan } from '../../lib/types/finance';
 import { formatNumber, formatXAF } from '../../lib/utils/format';
 import { apiErrorMessage } from '../../lib/utils/errors';
 import { colors } from '../../theme/colors';
@@ -47,13 +47,19 @@ function dateFR(iso?: string | null): string {
   return `${d.getDate()} ${MONTHS_FR[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-const LOAN_STATUS: Record<LoanStatus, { label: string; bg: string; fg: string }> = {
+const LOAN_STATUS: Record<string, { label: string; bg: string; fg: string }> = {
   pending: { label: 'En attente', bg: colors.goldSoft, fg: colors.goldAccent },
+  counter_offered: { label: 'Contre-offre', bg: colors.goldSoft, fg: colors.goldAccent },
+  awaiting_guarantors: { label: 'Attente garants', bg: colors.goldSoft, fg: colors.goldAccent },
   approved: { label: 'Approuvé', bg: colors.greenBg, fg: colors.primary },
   disbursed: { label: 'Décaissé', bg: colors.tintBlueBg, fg: colors.info },
   repaying: { label: 'En remboursement', bg: colors.tintBlueBg, fg: colors.info },
+  // Statuts hérités que le backend écrit hors énumération (validate_payment).
+  partial: { label: 'En remboursement', bg: colors.tintBlueBg, fg: colors.info },
+  completed: { label: 'Remboursé', bg: colors.greenBg, fg: colors.success },
   repaid: { label: 'Remboursé', bg: colors.greenBg, fg: colors.success },
   defaulted: { label: 'En défaut', bg: colors.dangerSoft, fg: colors.danger },
+  cancelled: { label: 'Annulé', bg: colors.surfaceAlt, fg: colors.textMuted },
 };
 
 function remainingOf(l: Loan): number {
@@ -81,6 +87,42 @@ export default function MesPretsScreen() {
   const loans = loansQ.data ?? [];
   const totalBorrowed = loans.reduce((acc, l) => acc + (Number(l.amount) || 0), 0);
   const totalRemaining = loans.reduce((acc, l) => acc + remainingOf(l), 0);
+
+  const invalidateLoans = () => {
+    qc.invalidateQueries({ queryKey: ['loans'] });
+    qc.invalidateQueries({ queryKey: ['loans', 'mine'] });
+    qc.invalidateQueries({ queryKey: ['wallet', 'me'] });
+  };
+
+  // Réponse du membre à la contre-offre du bureau (montant réajusté).
+  const acceptOfferMut = useMutation({
+    mutationFn: (id: string) => financeApi.acceptLoanOffer(id),
+    onSuccess: () => {
+      invalidateLoans();
+      Alert.alert('Contre-offre acceptée', 'Le bureau va procéder au décaissement.');
+    },
+    onError: (e: any) => Alert.alert('Erreur', apiErrorMessage(e)),
+  });
+
+  const declineOfferMut = useMutation({
+    mutationFn: (id: string) => financeApi.declineLoanOffer(id),
+    onSuccess: () => {
+      invalidateLoans();
+      Alert.alert('Contre-offre refusée', 'Votre demande de prêt a été annulée.');
+    },
+    onError: (e: any) => Alert.alert('Erreur', apiErrorMessage(e)),
+  });
+
+  const confirmDecline = (l: Loan) => {
+    Alert.alert(
+      'Refuser la contre-offre ?',
+      `Refuser la proposition de ${formatXAF(l.approved_amount ?? 0)} annulera définitivement votre demande de prêt.`,
+      [
+        { text: 'Garder la proposition', style: 'cancel' },
+        { text: 'Refuser', style: 'destructive', onPress: () => declineOfferMut.mutate(l.id) },
+      ],
+    );
+  };
 
   const repayMut = useMutation({
     mutationFn: (vars: {
@@ -227,9 +269,12 @@ export default function MesPretsScreen() {
             <Text style={styles.empty}>Aucun prêt pour le moment.</Text>
           ) : (
             loans.map((l, i) => {
-              const st = LOAN_STATUS[l.status as keyof typeof LOAN_STATUS] ?? LOAN_STATUS.pending;
+              const st = LOAN_STATUS[String(l.status)] ?? LOAN_STATUS.pending;
               const remaining = remainingOf(l);
-              const canRepay = (l.status === 'disbursed' || l.status === 'partial') && remaining > 0;
+              const canRepay =
+                ['disbursed', 'repaying', 'partial'].includes(String(l.status)) && remaining > 0;
+              const hasCounterOffer = l.status === 'counter_offered';
+              const offerBusy = acceptOfferMut.isPending || declineOfferMut.isPending;
               return (
                 <View key={l.id} style={[styles.loanRow, i > 0 && styles.loanDivider]}>
                   <View style={styles.loanHead}>
@@ -249,6 +294,36 @@ export default function MesPretsScreen() {
                     </Text>
                     {l.due_date ? <Text style={styles.loanMeta}>Échéance : {dateFR(l.due_date)}</Text> : null}
                   </View>
+
+                  {hasCounterOffer ? (
+                    <View style={styles.offerBox}>
+                      <View style={styles.offerHead}>
+                        <Ionicons name="swap-horizontal-outline" size={16} color={colors.goldAccent} />
+                        <Text style={styles.offerTitle}>Le bureau propose {formatXAF(l.approved_amount ?? 0)}</Text>
+                      </View>
+                      {l.counter_offer_note?.trim() ? (
+                        <Text style={styles.offerNote}>« {l.counter_offer_note.trim()} »</Text>
+                      ) : null}
+                      <View style={styles.offerActions}>
+                        <Pressable
+                          style={({ pressed }) => [styles.offerBtn, styles.offerDecline, pressed && styles.btnPressed]}
+                          onPress={() => confirmDecline(l)}
+                          disabled={offerBusy}>
+                          <Text style={styles.offerDeclineText}>Refuser</Text>
+                        </Pressable>
+                        <Pressable
+                          style={({ pressed }) => [styles.offerBtn, styles.offerAccept, pressed && styles.btnPressed]}
+                          onPress={() => acceptOfferMut.mutate(l.id)}
+                          disabled={offerBusy}>
+                          {acceptOfferMut.isPending ? (
+                            <ActivityIndicator size="small" color={colors.white} />
+                          ) : (
+                            <Text style={styles.offerAcceptText}>Accepter</Text>
+                          )}
+                        </Pressable>
+                      </View>
+                    </View>
+                  ) : null}
 
                   {canRepay ? (
                     <Pressable
@@ -419,6 +494,25 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   repayBtnText: { fontSize: font.size.sm, fontWeight: font.semibold, color: colors.primary },
+
+  // Contre-offre du bureau (montant réajusté à accepter ou refuser)
+  offerBox: {
+    backgroundColor: colors.goldSoft,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: colors.goldAccent,
+  },
+  offerHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  offerTitle: { flex: 1, fontSize: font.size.sm, fontWeight: font.bold, color: colors.text },
+  offerNote: { fontSize: font.size.sm, color: colors.textMuted, fontStyle: 'italic' },
+  offerActions: { flexDirection: 'row', gap: 10 },
+  offerBtn: { flex: 1, minHeight: 42, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  offerAccept: { backgroundColor: colors.primary },
+  offerAcceptText: { color: colors.white, fontSize: font.size.sm, fontWeight: font.bold },
+  offerDecline: { borderWidth: 1, borderColor: colors.danger, backgroundColor: colors.surface },
+  offerDeclineText: { color: colors.danger, fontSize: font.size.sm, fontWeight: font.semibold },
 
   empty: { fontSize: font.size.sm, color: colors.textMuted },
 

@@ -19,6 +19,7 @@ import BureauLoanDetailScreen from '../screens/bureau/BureauLoanDetailScreen';
 import BureauLoanAllocateScreen from '../screens/bureau/BureauLoanAllocateScreen';
 import BureauMyGuaranteesScreen from '../screens/bureau/BureauMyGuaranteesScreen';
 import BureauTreasuryScreen from '../screens/bureau/BureauTreasuryScreen';
+import BureauWithdrawalsScreen from '../screens/bureau/BureauWithdrawalsScreen';
 import BureauCyclesScreen from '../screens/bureau/BureauCyclesScreen';
 import BureauCycleCreateScreen from '../screens/bureau/BureauCycleCreateScreen';
 import BureauCycleDetailScreen from '../screens/bureau/BureauCycleDetailScreen';
@@ -88,6 +89,7 @@ export default function BureauStack() {
       <Stack.Screen name="BureauLoanAllocate" component={BureauLoanAllocateScreen} options={{ title: 'Allocation des prêts', ...header }} />
       <Stack.Screen name="BureauMyGuarantees" component={BureauMyGuaranteesScreen} options={{ title: 'Mes garanties', ...header }} />
       <Stack.Screen name="BureauTreasury" component={BureauTreasuryScreen} options={{ title: 'Trésorerie', ...header }} />
+      <Stack.Screen name="BureauWithdrawals" component={BureauWithdrawalsScreen} options={{ title: 'Retraits de trésorerie', ...header }} />
       {/* Phase 5 — Cycles & séances */}
       <Stack.Screen name="BureauCycles" component={BureauCyclesScreen} options={{ title: 'Cycles & séances', ...header }} />
       <Stack.Screen name="BureauCycleCreate" component={BureauCycleCreateScreen} options={{ title: 'Nouveau cycle', ...header }} />

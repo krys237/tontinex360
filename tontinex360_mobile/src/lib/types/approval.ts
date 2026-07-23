@@ -22,6 +22,7 @@ export type ApprovalActionType =
   | 'loan.approve'
   | 'loan.modify'
   | 'loan.write_off'
+  | 'treasury.withdraw'
   | 'cycle.close'
   | 'session.cancel'
   | 'election.validate_results'

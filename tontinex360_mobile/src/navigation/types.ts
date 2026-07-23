@@ -55,6 +55,7 @@ export type BureauStackParamList = {
   BureauLoanAllocate: undefined;
   BureauMyGuarantees: undefined;
   BureauTreasury: undefined;
+  BureauWithdrawals: undefined;
   // Phase 5 — Cycles & séances
   BureauCycles: undefined;
   BureauCycleCreate: undefined;

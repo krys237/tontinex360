@@ -8,12 +8,15 @@ import type {
   Transaction,
   LoanRepayment,
   TreasuryAccount,
+  TreasuryWithdrawal,
+  WithdrawalDebt,
   ContributionCorrectionRequest,
   LoanSettings,
   LoanCapacity,
   LoanCoverage,
   MyGuaranteeItem,
   TontineBalances,
+  FundWeights,
   ArrearsPreview,
 } from '../types/finance';
 
@@ -90,12 +93,12 @@ export const financeApi = {
       .post<Contribution>(`/finance/contributions/${id}/reject/`, { reason })
       .then((r) => r.data),
 
-  /** Demande de correction d'un montant déjà comptabilisé (→ double validation). */
   /**
-   * Demande de correction (double validation). Accepte une preuve photo optionnelle
-   * jointe en multipart sous `submitted_justification`.
-   * ⚠️ Le backend actuel ne stocke pas encore ce fichier (à ajouter côté serveur,
-   * cf. pattern sanctions/prêts) — le montant + motif, eux, sont bien pris en compte.
+   * Demande de correction d'un montant déjà comptabilisé (double validation
+   * président + bureau, TTL 24 h). Le serveur ne lit que new_paid_amount +
+   * reason ; il ne stocke PAS de fichier sur ce flux — pour un impayé avec
+   * preuve, passer par la re-soumission de cotisation (createContribution
+   * multipart, recyclage de la ligne DEFAULTED).
    */
   requestContributionCorrection: (
     contributionId: string,
@@ -193,6 +196,18 @@ export const financeApi = {
   updateLoan: (id: string, data: Partial<Loan>) =>
     api.patch<Loan>(`/finance/loans/${id}/`, data).then((r) => r.data),
 
+  /** Bureau : approuve ET décaisse directement le prêt (remplace l'ancienne
+   *  double-validation). `source_fund` = TontineType id du fonds débité,
+   *  null/absent = trésorerie générale (découvert autorisé). */
+  approveLoan: (
+    id: string,
+    data?: { source_fund?: string | null; treasury_account?: string | null },
+  ) => api.post<Loan>(`/finance/loans/${id}/approve/`, data ?? {}).then((r) => r.data),
+
+  /** Bureau : refuse la demande (pending / contre-offre / attente garants) → annulé. */
+  rejectLoan: (id: string, reason?: string) =>
+    api.post<Loan>(`/finance/loans/${id}/reject/`, { reason: reason ?? '' }).then((r) => r.data),
+
   // Contre-offre & allocation (trésorier)
   counterOfferLoan: (id: string, approvedAmount: number, note?: string) =>
     api
@@ -237,6 +252,15 @@ export const financeApi = {
   tontineBalances: () =>
     api.get<TontineBalances>('/finance/tontine-balances/').then((r) => r.data),
 
+  /** Poids (apport cumulé + %) de chaque membre dans un fonds — base du
+   *  partage des intérêts de prêt. Lecture ouverte à tout membre. */
+  fundWeights: (fundId: string, sessionId?: string) =>
+    api
+      .get<FundWeights>(`/finance/funds/${fundId}/weights/`, {
+        params: sessionId ? { session: sessionId } : undefined,
+      })
+      .then((r) => r.data),
+
   // ---------- Loan repayments ----------
   loanRepayments: (params?: { loan?: string; session?: string }) =>
     api
@@ -255,6 +279,38 @@ export const financeApi = {
         signature,
         device_info: deviceInfo ?? {},
       })
+      .then((r) => r.data),
+
+  // ---------- Retraits de trésorerie ----------
+  withdrawals: (params?: { status?: string }) =>
+    api
+      .get<TreasuryWithdrawal[] | Paginated<TreasuryWithdrawal>>('/finance/withdrawals/', {
+        params: { page_size: '200', ...params },
+      })
+      .then((r) => unwrap(r.data)),
+
+  /** Bureau : crée le retrait en `pending` (aucun mouvement) — l'application
+   *  passe ensuite par approvalsApi.request('treasury.withdraw', id, …). */
+  createWithdrawal: (data: {
+    source_fund: string | null;
+    amount: number;
+    reason: string;
+    session?: string | null;
+    is_repayable: boolean;
+  }) => api.post<TreasuryWithdrawal>('/finance/withdrawals/', data).then((r) => r.data),
+
+  /** Parts dues par membre (vide si le retrait n'est pas remboursable). */
+  withdrawalDebts: (id: string) =>
+    api.get<WithdrawalDebt[]>(`/finance/withdrawals/${id}/debts/`).then((r) => r.data),
+
+  /** Bureau : enregistre le remboursement de la part d'un membre
+   *  (plafonné serveur à la dette restante ; recrédite le fonds source). */
+  repayWithdrawal: (id: string, data: { membership: string; amount: number; treasury_account?: string }) =>
+    api
+      .post<{ withdrawal_id: string; membership_id: string; paid: string; remaining: string }>(
+        `/finance/withdrawals/${id}/repay/`,
+        data,
+      )
       .then((r) => r.data),
 
   // ---------- Treasury ----------

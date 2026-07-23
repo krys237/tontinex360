@@ -17,12 +17,18 @@ export function contributionStatus(s: ContributionStatus): { label: string; tone
 
 export const LOAN_STATUS: Record<string, { label: string; tone: StatusTone }> = {
   pending: { label: 'En attente', tone: 'warning' },
+  counter_offered: { label: 'Contre-offre', tone: 'warning' },
+  awaiting_guarantors: { label: 'Attente garants', tone: 'warning' },
   approved: { label: 'Approuvé', tone: 'info' },
   approved_allocated: { label: 'Alloué', tone: 'info' },
   disbursed: { label: 'Décaissé', tone: 'success' },
   repaying: { label: 'En remboursement', tone: 'info' },
+  // Statuts hérités écrits par le backend hors énumération (validate_payment).
+  partial: { label: 'En remboursement', tone: 'info' },
+  completed: { label: 'Remboursé', tone: 'success' },
   repaid: { label: 'Remboursé', tone: 'success' },
   defaulted: { label: 'En défaut', tone: 'danger' },
+  cancelled: { label: 'Annulé', tone: 'muted' },
 };
 
 export function loanStatus(s: LoanStatus | string): { label: string; tone: StatusTone } {

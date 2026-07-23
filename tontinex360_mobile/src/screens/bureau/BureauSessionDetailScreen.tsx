@@ -19,6 +19,7 @@ import { Card, TextField, IconBubble, PrimaryButton, OutlineButton, SoftButton }
 import StatusChip from '../../components/bureau/StatusChip';
 import TabsRow from '../../components/bureau/TabsRow';
 import RequirePermission from '../../components/bureau/RequirePermission';
+import AttendanceConfigCard from '../../components/bureau/AttendanceConfigCard';
 import type { BureauStackParamList } from '../../navigation/types';
 import type { AttendanceStatus, SessionAttendance } from '../../lib/types/cycle';
 import { sessionsApi } from '../../lib/api/sessions';
@@ -201,6 +202,10 @@ export default function BureauSessionDetailScreen() {
 
         {/* ---- Présences ---- */}
         {tab === 'attendance' ? (
+          <>
+          <RequirePermission bureau>
+            <AttendanceConfigCard />
+          </RequirePermission>
           <Card style={styles.attCard}>
             {membersQ.isLoading ? (
               <ActivityIndicator color={colors.primary} />
@@ -230,6 +235,7 @@ export default function BureauSessionDetailScreen() {
               })
             )}
           </Card>
+          </>
         ) : null}
 
         {/* ---- Cagnottes ---- */}
